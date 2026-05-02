@@ -1,0 +1,15 @@
+# Verified deps lock (M1 — anti-hallucination mechanism)
+# Populated in F1/T09 after web search verification of each entry.
+# RULE: nessuna dipendenza nel codice senza entry verificata qui.
+
+last_verified = "2026-05-02"
+
+# F1/T09 popola le entries [[dependency]] dopo web search su ognuna.
+# Esempio (placeholder — sarà sostituito):
+# [[dependency]]
+# name = "anthropic"
+# version = "0.40.0"
+# verified_date = "2026-05-02"
+# verified_via = "https://docs.anthropic.com/en/api/client-sdks"
+# methods_used = ["client.messages.create", "image content blocks", "cache_control"]
+# notes = "Claude Sonnet 4.6 vision support, prompt caching with ephemeral TTL"
