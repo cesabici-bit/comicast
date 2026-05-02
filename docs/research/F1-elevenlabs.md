@@ -419,7 +419,7 @@ The call was **not executed**. ELEVENLABS_API_KEY is not present in this shell. 
 
 ## Discrepancies & open notes
 
-1. **Primary-doc 403/404 from WebFetch.** Three primary URLs returned 403/404 to the WebFetch tool on 2026-05-02:
+1. **Primary-doc 403/404 from WebFetch.** Five primary URLs returned 403/404 to the WebFetch tool on 2026-05-02:
    - `https://elevenlabs.io/docs/best-practices/prompting/eleven-v3` (the canonical v3 prompting page; appears in their search index but the fetched response is "Page Not Found")
    - `https://help.elevenlabs.io/hc/en-us/articles/35869142561297-How-do-audio-tags-work-with-Eleven-v3`
    - `https://help.elevenlabs.io/hc/en-us/articles/35869054119057-What-is-Eleven-v3`
@@ -433,7 +433,7 @@ The call was **not executed**. ELEVENLABS_API_KEY is not present in this shell. 
 
 4. **voice_id stability is implied, not guaranteed.** The help article and the SDK README treat voice_id as a fixed identifier, but ElevenLabs does not publish a contractual stability guarantee. Voice Library voices can be delisted by their creator. Pass 3 must persist not just the voice_id but a metadata snapshot, and must tolerate a 404 on the persisted voice_id with a re-search fallback. **Status: open, deferred to T19.**
 
-5. **Pricing-page A/B numbers.** The `/pricing` page rendered slightly different numbers across two fetches today (Creator 100k vs 121k characters, Starter $5 vs $6). For the cost model we used the most-cited values: Creator $22/month with 100k chars/month. Re-verify pricing snapshot at T09 lock time and re-compute Step 4 if numbers have moved more than ~25%.
+5. **Pricing-page A/B numbers.** The `/pricing` page rendered slightly different numbers across two fetches today (Creator 100k vs 121k characters, Starter $5 vs $6). For the cost model we used the most-cited values: Creator $22/month with 100k chars/month. Re-verify pricing snapshot at T09 lock time and re-compute Step 4 if numbers have moved more than ~25%. **Worked example:** if T09 confirms Creator = 121k/month, then 121k ÷ 50k/vol = **2 vols/month inside allotment** (unchanged from the 100k case — both round down to 2). The recompute trigger fires when the allotment crosses a per-volume boundary: e.g. ≥150k flips Regime D from "2 vols/month inside" to "3 vols/month inside", and ≥100k chars/vol (volume size growth) drops the per-vol budget. Practical rule: re-derive Regime D when `floor(allotment / 50k_chars) ≠ floor(100k / 50k_chars) = 2`.
 
 6. **v3 alpha-period 80% off pricing has expired.** Older (mid-2025) blog posts and tutorials may quote the alpha discount. v3 went GA on 2026-03-14 and is now billed at the standard 1 credit/character. Comicast cost model uses the post-GA rate.
 
