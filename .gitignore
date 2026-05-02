@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+dist/
+build/
+
+# Environments
+.venv/
+.env
+.env.local
+
+# Runtime data (never commit)
+data/work/
+data/series_profiles/*.local.json   # personal/cloning configs (Phase 2)
+*.mp3
+*.m4b
+*.wav
+pages/
+script.json
+script_with_voices.json
+flags.json
+corrections.jsonl
+budget.log
+
+# IDE
+.vscode/
+.idea/
