@@ -30,7 +30,7 @@
 - Supported media types: `image/jpeg`, `image/png`, `image/gif`, `image/webp`. The `media_type` must match the actual bytes (mismatch raises an API error — see anthropics/claude-code#11936).
 - Image size limits (per primary docs and confirmed by Anthropic GitHub issues anthropics/claude-code#11564 and #20021):
   - Per-image **payload cap: 5 MB** (base64 raw bytes after decoding).
-  - Per-dimension **cap: 8000 pixels** (single-image requests). For many-images requests the per-dimension cap is **2000 px** (langgenius/dify#11177, citing the Anthropic API error string).
+  - Per-dimension **cap: 8000 pixels** (single-image requests). For many-images requests the per-dimension cap is **2000 px** (langgenius/dify#11177 (secondary — third-party issue quoting Anthropic error string)).
 - Recommendation in primary docs: for images reused across calls, prefer the **Files API** (upload once, reference by `file_id`) over base64 to avoid re-encoding overhead. Comicast Pass 2b reuses cast.json (system prompt) but each page image is unique → base64 is acceptable; the cache hit is on the system prompt, not the image.
 
 ### 1.2 Prompt caching (`cache_control` ephemeral / 1h)
@@ -61,7 +61,7 @@
 **Findings:**
 
 - As of 2026, Anthropic supports **Structured Outputs** in two complementary ways:
-  1. **Strict tool use** — pass a tool definition with a JSON Schema and `strict: true`. The model is constrained-decoded so that `tool_use.input` is guaranteed to satisfy the schema. Supported on Sonnet 4.5 and Opus 4.1; the Sonnet 4.6 product page indicates 4.6 inherits this.
+  1. **Strict tool use** — pass a tool definition with a JSON Schema and `strict: true`. The model is constrained-decoded so that `tool_use.input` is guaranteed to satisfy the schema. Strict tool use / structured outputs is documented as supported on Claude Sonnet 4.6 (alongside Opus 4.7, Opus 4.6, Sonnet 4.5, Opus 4.5, and Haiku 4.5) per https://platform.claude.com/docs/en/build-with-claude/structured-outputs (checked 2026-05-02).
   2. **`output_config` (response schema)** — the `client.messages.create(..., output_config={"type": "json_schema", "schema": {...}})` parameter; opt-in via the beta header `anthropic-beta: structured-outputs-2025-11-13`. Forces the response to match a top-level JSON Schema.
 - For Comicast Pass 2b the simpler path is **strict tool use**: define a single tool `record_page` whose input schema mirrors the page-record JSON we want (panels, lines, speaker_id, etc.). The model is forced to call that tool, and `response.content[0].input` is our parsed dict. This is the Anthropic-recommended pattern in their cookbook.
 - Structured outputs **do not** disable prompt caching. The schema travels in `tools=[...]`, which sits before `system` in the cache prefix, so as long as the tool list is stable across calls, it is cached automatically.
@@ -251,6 +251,7 @@ def process_page(page_png: Path, page_number: int) -> dict:
 **Shape verified against:**
 - https://docs.anthropic.com/en/docs/build-with-claude/vision on 2026-05-02 (image content block: `type`, `source.type`, `source.media_type`, `source.data`).
 - https://platform.claude.com/docs/en/build-with-claude/prompt-caching on 2026-05-02 (`system` as a list of typed text blocks; `cache_control` lives on a content block, not on the request root; `{"type": "ephemeral"}` defaults to 5m).
+- https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools on 2026-05-02 (tool-block field names: `name`, `description`, `input_schema` — Anthropic uses `input_schema`, not `parameters`).
 - https://github.com/anthropics/anthropic-sdk-python on 2026-05-02 (`Anthropic()` constructor, `messages.create(model=..., max_tokens=..., system=..., messages=..., tools=..., tool_choice=...)`, `response.content[i].type == "tool_use"` shape, `response.usage` fields).
 
 The call was **not executed**. Per task brief: no API key required for T05. Live execution lands in T19.
