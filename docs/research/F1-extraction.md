@@ -13,7 +13,7 @@
 | Concern | Status | One-line takeaway |
 |---|---|---|
 | `pdf2image` Python wrapper | OK (verified) | v1.17.0 on PyPI, MIT, Python ≥3.7. Already installed in `.venv` at 1.17.0. |
-| Poppler binary on Windows | NOT INSTALLED on this host (expected) | Use `oschwartz10612/poppler-windows` v25.12.0-0; add `Library/bin` to PATH or pass `poppler_path=` kwarg. Sanity test failed cleanly with `PDFInfoNotInstalledError` — exactly the documented install-trigger failure mode. |
+| Poppler binary on Windows | NOT INSTALLED on this host (expected) | Use `oschwartz10612/poppler-windows` ≥ 25.12.0-0 (forward-compatible); add `Library/bin` to PATH or pass `poppler_path=` kwarg. Sanity test failed cleanly with `PDFInfoNotInstalledError` — exactly the documented install-trigger failure mode. |
 | `rarfile` Python wrapper | OK (import works) | v4.2 on PyPI, ISC, Python ≥3.6. Already installed in `.venv` at 4.2. Module-level constants (`UNRAR_TOOL`, `BSDTAR_TOOL`, etc.) are documented and overridable. |
 | `unrar`/`bsdtar` binary on Windows | NOT INSTALLED on this host (acceptable) | CBR is **out of scope for the smoke test** (PDF is the chosen format for Invincible Vol 2). `rarfile.tool_setup()` correctly raises `RarCannotExec("Cannot find working tool")` so we have a verified failure-shape if a CBR ever lands. |
 | `Pillow` | OK (verified) | v12.2.0 on PyPI, MIT-CMU, Python ≥3.10. `Image.rotate(angle, resample, expand, fillcolor)` API surface matches what a deskew module would need. |
@@ -53,7 +53,7 @@
 
 **Findings — Poppler on Windows:**
 
-- The de-facto Windows distribution is **`oschwartz10612/poppler-windows`** (recommended explicitly in the pdf2image install docs). License: MIT. Latest release at check time: **`25.12.0-0`** (released **2025-12-04**) (primary — github releases).
+- The de-facto Windows distribution is **`oschwartz10612/poppler-windows`** (recommended explicitly in the pdf2image install docs). License: MIT. **Pin:** poppler-windows **≥ 25.12.0-0** ("Latest release at check time, 2026-05-02; forward-compatible — newer 0.x point releases are expected to remain API-stable") — released **2025-12-04** (primary — github releases).
 - Install procedure (verbatim from primary docs):
   1. Download the latest `Release-XX.YY.0-0.zip` from the releases page.
   2. Extract to a desired location (e.g. `C:\poppler-25.12.0\`).
@@ -71,6 +71,7 @@
 - **Primary — rarfile FAQ:** https://rarfile.readthedocs.io/faq.html (checked 2026-05-02)
 - **Primary — rarfile FAQ (GitHub mirror):** https://github.com/markokr/rarfile/blob/master/doc/faq.rst (checked 2026-05-02)
 - **Primary — rarfile source (constants):** https://github.com/markokr/rarfile/blob/master/rarfile.py (checked 2026-05-02; lines 155-166)
+- **Secondary — rarfile v4.2 release (date corroboration):** https://github.com/markokr/rarfile/releases/tag/v4.2 [secondary] (checked 2026-05-02; corroborates the 2024-04-03 release date for v4.2)
 - **Secondary — kcc bsdtar/cbr issue:** https://github.com/ciromattia/kcc/issues/1233 (secondary — corroborates that bsdtar can read some CBR variants where 7z fails on Linux)
 
 **Findings:**
@@ -90,7 +91,7 @@
   SEVENZIP2_TOOL = "7zz"
   ```
   — meaning Comicast can do `rarfile.UNRAR_TOOL = r"C:\Program Files\WinRAR\UnRAR.exe"` at startup, or `rarfile.BSDTAR_TOOL = r"C:\Program Files\Git\usr\bin\bsdtar.exe"` (Git for Windows ships bsdtar) without modifying PATH. This is the recommended Comicast pattern, mirroring `poppler_path=`.
-- Windows specifics (primary — FAQ): `unrar.exe` is **not** on PATH after a default WinRAR install. Two documented fixes: (1) add WinRAR install dir to PATH, (2) copy `unrar.exe` into a system dir already on PATH (e.g. `C:\Windows`). Comicast prefers (3) `rarfile.UNRAR_TOOL = ...` programmatic override (no admin rights, no PATH mutation, audit-friendly).
+- Windows specifics (primary — FAQ): `unrar.exe` is **not** on PATH after a default WinRAR install. Two documented fixes from the WinRAR FAQ: (1) add WinRAR install dir to PATH, (2) copy `unrar.exe` into a system dir already on PATH (e.g. `C:\Windows`). Comicast prefers a third, programmatic option not requiring PATH mutation: (3) `rarfile.UNRAR_TOOL = r"C:\Program Files\WinRAR\UnRAR.exe"` set at startup (no admin rights, audit-friendly).
 - Programmatic detection: `rarfile.tool_setup()` raises `RarCannotExec("Cannot find working tool")` if none of the above tools is reachable. Caught at extract-stage init in `comicast/extract.py` to fail-fast with an actionable error message.
 
 ### 1.3 `Pillow` deskew approach
@@ -98,6 +99,8 @@
 - **Primary — Pillow PyPI:** https://pypi.org/project/Pillow/ (checked 2026-05-02)
 - **Primary — Pillow `Image.rotate` reference:** https://pillow.readthedocs.io/en/stable/reference/Image.html (checked 2026-05-02)
 - **Primary — `deskew` PyPI:** https://pypi.org/project/deskew/ (checked 2026-05-02)
+- **Secondary — Pillow 12.2.0 release notes (date corroboration):** https://pillow.readthedocs.io/en/stable/releasenotes/12.2.0.html [secondary] (checked 2026-05-02; corroborates the 2026-04-01 release date for 12.2.0)
+- **Secondary — `deskew` PyPI release history (date corroboration):** https://pypi.org/project/deskew/#history [secondary] (checked 2026-05-02; corroborates the 2026-04-13 release date for 1.6.0)
 - **Secondary — Hough-transform deskew tutorial:** https://medium.com/wearesinch/correcting-image-rotation-with-hough-transform-e902a22ad988 (secondary — illustrates Option A's complexity)
 - **Secondary — fast-deskew-cv:** https://pypi.org/project/fast-deskew-cv/ (secondary — alternative third-party deskew lib, also OpenCV-based)
 
@@ -139,7 +142,7 @@ The Python wheels alone are not enough. The extraction tier needs these **system
 
 | OS | Poppler (PDF) | unrar (CBR) | bsdtar fallback (CBR) |
 |---|---|---|---|
-| **Windows** | `oschwartz10612/poppler-windows` v25.12.0-0 — extract & add `…\Library\bin` to PATH, **or** pass `poppler_path=` to `convert_from_path` | UnRAR.exe from rarlab.com (or WinRAR install) — add to PATH **or** set `rarfile.UNRAR_TOOL=...` | Git for Windows already ships `bsdtar.exe` (`C:\Program Files\Git\usr\bin\bsdtar.exe`). Set `rarfile.BSDTAR_TOOL=...` to use it. |
+| **Windows** | `oschwartz10612/poppler-windows` ≥ 25.12.0-0 (forward-compatible) — extract & add `…\Library\bin` to PATH, **or** pass `poppler_path=` to `convert_from_path` | UnRAR.exe from rarlab.com (or WinRAR install) — add to PATH **or** set `rarfile.UNRAR_TOOL=...` | Git for Windows already ships `bsdtar.exe` (`C:\Program Files\Git\usr\bin\bsdtar.exe`). Set `rarfile.BSDTAR_TOOL=...` to use it. |
 | **Linux (Debian/Ubuntu)** | `sudo apt-get install poppler-utils` | `sudo apt-get install unrar` (in `multiverse` on Ubuntu; some distros ship only `unrar-free` which has reduced format support) | `sudo apt-get install libarchive-tools` (provides `bsdtar`) |
 | **macOS (Homebrew)** | `brew install poppler` | `brew install unrar` (note: `unrar` formula was moved to `homebrew/cask` in past — check `brew search unrar` if it errors) | `brew install libarchive` (then `bsdtar` is in `$(brew --prefix libarchive)/bin`) |
 
@@ -245,6 +248,7 @@ tool_setup: FAILED (RarCannotExec): Cannot find working tool
 3. **macOS `unrar` brew formula migration.** Older guides reference `brew install unrar`; the formula has been moved between `core` and `cask` over the years. Documentary only — Comicast does not currently support macOS as a primary dev platform.
 4. **Pillow Python ≥3.10.** Project pins Python ≥3.12 (per `pyproject.toml` from F0), so Pillow ≥12.2 is comfortably within range. No issue.
 5. **WebFetch user-agent filtering.** Did not hit any 403/404 in this round; all primary URLs (pdf2image, poppler-windows, rarfile, Pillow, deskew) returned content. Contrast with T06's ElevenLabs help-center 403s.
+6. **pdf2image staleness** — last release `1.17.0` is dated 2024-01-07 (~16 months stale at check 2026-05-02). Library is mature with no known regressions on Pillow ≥ 12.x, but T15 (extract.py) should re-verify before landing implementation. If a v1.18 ships before T15, prefer it.
 
 ---
 
@@ -263,7 +267,7 @@ methods_used = [
     "convert_from_path kwargs: dpi, first_page, last_page, fmt, thread_count, output_folder, paths_only, poppler_path",
 ]
 notes = """
-System binary required: Poppler. Windows: oschwartz10612/poppler-windows v25.12.0-0 (extract; PATH=Library/bin OR pass poppler_path kwarg).
+System binary required: Poppler. Windows: oschwartz10612/poppler-windows >= 25.12.0-0 (forward-compatible; extract; PATH=Library/bin OR pass poppler_path kwarg).
 Linux: apt-get install poppler-utils. macOS: brew install poppler. Conda: conda install -c conda-forge poppler.
 Real-PDF sanity test 2026-05-02 confirmed PDFInfoNotInstalledError when binary missing (fail-fast, no silent corruption).
 """
@@ -281,7 +285,7 @@ methods_used = [
     "module-level constants: UNRAR_TOOL, UNAR_TOOL, BSDTAR_TOOL, SEVENZIP_TOOL",
 ]
 notes = """
-System binary required (any of, in preference order): unrar (recommended, Rarlab) > unar > 7z > bsdtar.
+System binary required: unrar (preferred) or bsdtar (fallback). Note: rarfile natively probes unrar > unar > 7z > bsdtar; Comicast restricts the chain to unrar > bsdtar for predictable failure modes — see §1.4.
 Override paths programmatically: rarfile.UNRAR_TOOL = r'<full path>'; same for BSDTAR_TOOL.
 Windows: unrar.exe is NOT on PATH after a default WinRAR install — use programmatic override.
 bsdtar limitations: no multi-volume, no solid, no password, no RARVM. Acceptable for image-only CBRs.
