@@ -22,9 +22,30 @@ from comicast.logging_setup import get_logger
 
 log = get_logger("comicast.anthropic")
 
+# Transient errors worth retrying. Per anthropic SDK 0.97 hierarchy:
+# - APIConnectionError covers APITimeoutError (subclass) — network/connection failures.
+# - RateLimitError (429) — caller's quota; backoff lets it clear.
+# - InternalServerError (5xx) — server-side; retry per Anthropic best practice.
+# Non-transient errors (BadRequestError, AuthenticationError, NotFoundError,
+# UnprocessableEntityError, PermissionDeniedError, ConflictError) are NOT in this
+# tuple — retrying them burns 14s + 3x token budget on calls guaranteed to fail.
+TRANSIENT_EXCEPTIONS = (
+    anthropic.APIConnectionError,
+    anthropic.RateLimitError,
+    anthropic.InternalServerError,
+)
+
 
 class AnthropicClient:
-    """Wrapper that integrates retry, caching, budget tracking."""
+    """Wrapper that integrates retry, caching, budget tracking.
+
+    Use `call_text` for text-in/text-out and `call_with_image` for vision calls
+    (Pass 2a/2b). Set `cache_system=True` when the system prompt is large enough
+    to benefit from caching (≥1024 tokens; see F1-anthropic.md:116). This wrapper
+    does NOT yet support strict tool-use responses — when Pass 2b lands strict
+    tool calls, add a dedicated `call_with_tool()` method (the current methods
+    raise on a tool_use-only response, see `_call` below).
+    """
 
     def __init__(
         self,
@@ -43,7 +64,7 @@ class AnthropicClient:
         self._client = anthropic.Anthropic(api_key=key)
 
     @retry(
-        retry=retry_if_exception_type((anthropic.APIError, anthropic.APIConnectionError)),
+        retry=retry_if_exception_type(TRANSIENT_EXCEPTIONS),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=30),
         reraise=True,
@@ -111,14 +132,16 @@ class AnthropicClient:
         log.info("anthropic.call", trace_id=trace_id, cache=cache_system, model=self.model)
         msg = self._create(
             model=self.model,
-            max_tokens=max_tokens or self.max_tokens,
+            max_tokens=max_tokens if max_tokens is not None else self.max_tokens,
             system=sys_param,
             messages=[{"role": "user", "content": user_content}],
         )
 
         usage = msg.usage
-        cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
-        cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        cache_read = getattr(usage, "cache_read_input_tokens", 0)
+        cache_write = getattr(usage, "cache_creation_input_tokens", 0)
+        # Post-record-assert ordering: the offending call IS billed and logged
+        # before halting — debug aid for runaway-cost forensics.
         self.budget.record(
             provider="anthropic",
             input_tokens=usage.input_tokens,
@@ -128,6 +151,15 @@ class AnthropicClient:
         )
         self.budget.assert_under_hard_limit()
 
-        # Concatenate text blocks (Claude usually returns 1)
+        # Concatenate text blocks. Fail loudly when there are none — this catches
+        # both new content types added by Anthropic (Risk 4) and Pass 2b strict
+        # tool-use responses misusing call_text/call_with_image (use a dedicated
+        # call_with_tool() method when that path lands).
         text_parts = [b.text for b in msg.content if getattr(b, "type", None) == "text"]
+        if not text_parts:
+            block_types = [getattr(b, "type", None) for b in msg.content]
+            raise RuntimeError(
+                f"AnthropicClient expected a text response, got block types: {block_types}. "
+                "If this is a strict tool-use call, use a dedicated call_with_tool() method."
+            )
         return "".join(text_parts)
