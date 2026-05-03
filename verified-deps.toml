@@ -1,15 +1,435 @@
 # Verified deps lock (M1 — anti-hallucination mechanism)
 # Populated in F1/T09 after web search verification of each entry.
 # RULE: nessuna dipendenza nel codice senza entry verificata qui.
+# RULE: version field = installed major.minor. Verifier checks major-version match.
+#
+# Pre-step findings (2026-05-03):
+#   - pdf2image: v1.17.0 is still the latest on PyPI (no v1.18 exists). Stay on 1.17.
+#   - elevenlabs: SDK 2.x API is compatible with F1-elevenlabs.md.
+#     TextToSpeechClient.convert / .stream, VoicesClient.get_shared / .search all present.
+#     Signature change: voice_id is now a positional arg (first), not a kwarg. Document.
+#   - pydub: CRITICAL — imports audioop (removed in Python 3.13, PEP 594). pydub 0.25.1
+#     is the latest and has no Python 3.13 fix. audioop-lts 0.2.2 is available as a
+#     backport and installs the missing C extension. F2 must add audioop-lts to
+#     pyproject.toml dependencies OR evaluate pydub alternatives (soundfile + ffmpeg-python).
 
-last_verified = "2026-05-02"
+last_verified = "2026-05-03"
 
-# F1/T09 popola le entries [[dependency]] dopo web search su ognuna.
-# Esempio (placeholder — sarà sostituito):
-# [[dependency]]
-# name = "anthropic"
-# version = "0.40.0"
-# verified_date = "2026-05-02"
-# verified_via = "https://docs.anthropic.com/en/api/client-sdks"
-# methods_used = ["client.messages.create", "image content blocks", "cache_control"]
-# notes = "Claude Sonnet 4.6 vision support, prompt caching with ephemeral TTL"
+# ─── RUNTIME DEPENDENCIES (14) ─────────────────────────────────────────────
+
+[[dependency]]
+name = "anthropic"
+version = "0.97"
+verified_date = "2026-05-03"
+verified_via = "https://github.com/anthropics/anthropic-sdk-python"
+methods_used = [
+    "Anthropic",
+    "client.messages.create",
+    "messages.create kwargs: model, max_tokens, tools, tool_choice, system, messages",
+    "response.content[i].type",
+    "response.content[i].input",
+    "response.usage.input_tokens",
+    "response.usage.output_tokens",
+    "response.usage.cache_creation_input_tokens",
+    "response.usage.cache_read_input_tokens",
+    "client.messages.batches.create",
+]
+notes = """
+Model: claude-sonnet-4-6 (vision + prompt caching, price/perf sweet spot for Pass 2b).
+Caching: cache_control={type:'ephemeral'} on system block, 5-min TTL (default since 2026-03-06).
+Max 4 cache_control breakpoints per request; Comicast uses 1 (end of static system block).
+Image content block: {type:'image', source:{type:'base64', media_type:'image/png', data:<b64>}}.
+Per-image limits: 5 MB payload, 8000 px per dimension (2000 px for multi-image batches).
+Structured output: strict tool use via tools=[record_page] + tool_choice={type:'tool',name:'record_page'}.
+tools (input_schema, not parameters) sit before system in cache prefix; cached automatically.
+Min cacheable threshold: docs say 1024 tokens; anthropic-sdk-python#1194 reports occasional 2048.
+response.usage source: https://github.com/anthropics/anthropic-sdk-python README (verified 2026-05-02).
+SDK 0.97 released 2026-04-23; verified via https://pypi.org/project/anthropic/ (2026-05-03).
+"""
+
+[[dependency]]
+name = "elevenlabs"
+version = "2.45"
+verified_date = "2026-05-03"
+verified_via = "https://github.com/elevenlabs/elevenlabs-python"
+methods_used = [
+    "ElevenLabs",
+    "AsyncElevenLabs",
+    "client.text_to_speech.convert",
+    "client.text_to_speech.stream",
+    "client.voices.get_shared",
+    "client.voices.search",
+    "TextToSpeechClient.convert kwargs: voice_id (positional), text, model_id, output_format, voice_settings",
+    "VoicesClient.get_shared kwargs: page_size, gender, age, accent, language, descriptives, use_cases, search, sort",
+]
+notes = """
+MAJOR VERSION BUMP: F1-elevenlabs.md research was done against SDK 1.5. Installed is 2.45.
+API surface verified via CLI introspection 2026-05-03 — all F1 methods still present:
+  TextToSpeechClient.convert / .stream / .convert_with_timestamps / .stream_with_timestamps
+  VoicesClient.get_shared / .search / .get_all / .delete / .update
+SIGNATURE CHANGE (1.x → 2.x): voice_id is now the first POSITIONAL arg on .convert()
+  (not a kwarg). F3 call sites must use positional: convert(voice_id, text=..., model_id=...).
+Model: eleven_v3 (GA since 2026-03-14). Director instructions: inline [bracket] tags in text=.
+Voice search for Pass 3 uses client.voices.get_shared() — exposes structured gender/age/accent.
+Pricing: 1 credit/char; $0.10/1k chars; Creator tier $22/mo, 100k chars, 5 concurrent.
+v3 alpha 80%-off promo expired. Premium library voices carry rate multiplier 2x-3x.
+SDK 2.45 released 2026-04-27; verified via https://pypi.org/project/elevenlabs/ (2026-05-03).
+"""
+
+[[dependency]]
+name = "pdf2image"
+version = "1.17"
+verified_date = "2026-05-03"
+verified_via = "https://pypi.org/project/pdf2image/ + https://github.com/Belval/pdf2image/blob/master/README.md"
+methods_used = [
+    "convert_from_path",
+    "convert_from_path kwargs: dpi, first_page, last_page, fmt, thread_count, output_folder, paths_only, poppler_path",
+]
+notes = """
+System binary required: Poppler. Windows: oschwartz10612/poppler-windows >= 25.12.0-0.
+PATH = .../Library/bin OR pass poppler_path= kwarg to convert_from_path (preferred for CI).
+Linux: apt-get install poppler-utils. macOS: brew install poppler. Conda: conda-forge poppler.
+v1.17.0 confirmed STILL THE LATEST on PyPI as of 2026-05-03 (pip index versions = 1.17.0 only).
+No v1.18 released — T07 note about 16-month staleness remains; no upgrade available.
+Real-PDF sanity 2026-05-02: PDFInfoNotInstalledError in 0.13s (expected; poppler missing on host).
+"""
+
+[[dependency]]
+name = "Pillow"
+version = "12.2"
+verified_date = "2026-05-03"
+verified_via = "https://pypi.org/project/Pillow/ + https://pillow.readthedocs.io/en/stable/reference/Image.html"
+methods_used = [
+    "Image.open",
+    "Image.new",
+    "Image.save",
+    "Image.rotate",
+    "Image.Resampling.BICUBIC",
+    "Image.convert",
+    "Image.resize",
+]
+notes = """
+MAJOR VERSION BUMP: pyproject declared >=10.4.0; installed is 12.2.0 (released 2026-04-01).
+Key API verified via CLI 2026-05-03: Image.open, Image.new, Image.save, Image.rotate,
+  Image.Resampling.BICUBIC all present and functional.
+Deskew: Image.rotate(angle, resample=Resampling.BICUBIC, expand=True, fillcolor='white')
+  is the deskew primitive IF ever needed; currently deferred per DESKEW-001 (Option B).
+Python >= 3.10 required by Pillow; project pins Python >= 3.12, so no conflict.
+"""
+
+[[dependency]]
+name = "pydub"
+version = "0.25"
+verified_date = "2026-05-03"
+verified_via = "https://pypi.org/project/pydub/ + https://github.com/jiaaro/pydub"
+methods_used = [
+    "AudioSegment",
+    "AudioSegment.from_file",
+    "AudioSegment.from_mp3",
+    "AudioSegment.silent",
+    "AudioSegment.export",
+    "AudioSegment.__add__",
+    "AudioSegment.__iadd__",
+]
+notes = """
+CRITICAL — PYTHON 3.13 INCOMPATIBILITY: pydub 0.25.1 imports audioop (removed in Python 3.13,
+PEP 594). On this host (Python 3.13.2), 'from pydub import AudioSegment' raises
+ModuleNotFoundError: No module named 'audioop' / 'pyaudioop'.
+FIX: add 'audioop-lts>=0.2.2' to pyproject.toml dependencies — provides the missing
+  C extension under Python 3.13 (wheel available: audioop_lts-0.2.2-cp313-abi3-win_amd64).
+  F2 must add this entry to pyproject.toml before F3 starts.
+ALTERNATIVE: evaluate soundfile + ffmpeg-python for pure-Python audio concatenation
+  (pydub is essentially a wrapper around ffmpeg). Decision for F2.
+pydub 0.25.1 is the latest available — no Python 3.13 fix upstream.
+Runtime dependency: ffmpeg binary must be on PATH (or FFMPEG_PATH env var).
+"""
+
+[[dependency]]
+name = "ffmpeg-python"
+version = "0.2"
+verified_date = "2026-05-03"
+verified_via = "https://pypi.org/project/ffmpeg-python/ + https://github.com/kkroening/ffmpeg-python"
+methods_used = [
+    "ffmpeg.input",
+    "ffmpeg.output",
+    "ffmpeg.run",
+    "ffmpeg.concat",
+    "ffmpeg.filter",
+    "ffmpeg.probe",
+]
+notes = """
+Verified via CLI import 2026-05-03: ffmpeg.input, ffmpeg.output, ffmpeg.run all present.
+System binary required: ffmpeg. Must be on PATH or FFMPEG_PATH env var.
+ffmpeg-python 0.2.0 is the latest (released 2020); project is stable/mature, no active dev.
+Used in Comicast for: audio format conversion (mp3→m4b chapter markers), probing audio duration.
+Note: the package name on PyPI is 'ffmpeg-python' but 'import ffmpeg' (not import ffmpeg_python).
+"""
+
+[[dependency]]
+name = "mutagen"
+version = "1.47"
+verified_date = "2026-05-03"
+verified_via = "https://pypi.org/project/mutagen/ + https://mutagen.readthedocs.io/"
+methods_used = [
+    "mutagen.mp4.MP4",
+    "mutagen.mp4.MP4Tags",
+    "mutagen.id3.ID3",
+    "mutagen.id3.TIT2",
+    "mutagen.id3.TPE1",
+    "mutagen.id3.TALB",
+    "mutagen.id3.TRCK",
+]
+notes = """
+Verified via CLI import 2026-05-03: mutagen.mp4.MP4, mutagen.id3.ID3 + ID3 tags (TIT2, TPE1,
+  TALB, TRCK) all present.
+Used in Comicast for: writing chapter markers in M4B output (MP4 atoms + ID3 tags for MP3).
+mutagen 1.47.0 released 2024-11-06; latest stable.
+"""
+
+[[dependency]]
+name = "pydantic"
+version = "2.13"
+verified_date = "2026-05-03"
+verified_via = "https://docs.pydantic.dev/latest/ + https://pypi.org/project/pydantic/"
+methods_used = [
+    "pydantic.BaseModel",
+    "pydantic.Field",
+    "pydantic.model_validator",
+    "pydantic.field_validator",
+    "pydantic.ConfigDict",
+]
+notes = """
+Verified via CLI import 2026-05-03: pydantic.BaseModel, pydantic.Field all present.
+Pydantic v2 (2.x) uses model_validator and field_validator decorators (not v1's @validator).
+Used in Comicast for: schema validation of script.json, series_profile.json, cast.json.
+pydantic 2.13.3 released 2026-04-07; latest stable in 2.x line.
+"""
+
+[[dependency]]
+name = "typer"
+version = "0.25"
+verified_date = "2026-05-03"
+verified_via = "https://typer.tiangolo.com/ + https://pypi.org/project/typer/"
+methods_used = [
+    "typer.Typer",
+    "typer.Option",
+    "typer.Argument",
+    "typer.echo",
+    "typer.confirm",
+    "app.command",
+]
+notes = """
+Verified via CLI import 2026-05-03: typer.Typer present.
+Used in Comicast for: main CLI entry point (comicast process, comicast review, etc.).
+typer 0.25.1 released 2025-11-07; latest stable.
+"""
+
+[[dependency]]
+name = "rich"
+version = "15.0"
+verified_date = "2026-05-03"
+verified_via = "https://rich.readthedocs.io/ + https://pypi.org/project/rich/"
+methods_used = [
+    "rich.console.Console",
+    "rich.progress.Progress",
+    "rich.progress.BarColumn",
+    "rich.progress.TextColumn",
+    "rich.progress.TimeRemainingColumn",
+    "rich.table.Table",
+    "rich.panel.Panel",
+    "rich.prompt.Prompt",
+    "rich.prompt.Confirm",
+]
+notes = """
+MAJOR VERSION BUMP: pyproject declared >=13.9.0; installed is 15.0.0.
+Key APIs verified via CLI 2026-05-03: Console, Progress, Table, Panel all present and importable.
+No breaking changes for Comicast's use of Console/Progress/Table/Panel in 13→15 migration.
+Used in Comicast for: HITL CLI display (progress bars, tables of flagged bubbles, panels).
+rich 15.0.0 released 2025-12-13; latest stable.
+"""
+
+[[dependency]]
+name = "structlog"
+version = "25.5"
+verified_date = "2026-05-03"
+verified_via = "https://www.structlog.org/en/stable/ + https://pypi.org/project/structlog/"
+methods_used = [
+    "structlog.get_logger",
+    "structlog.configure",
+    "structlog.stdlib.add_log_level",
+    "structlog.stdlib.add_logger_name",
+    "structlog.dev.ConsoleRenderer",
+    "structlog.processors.JSONRenderer",
+]
+notes = """
+MAJOR VERSION BUMP: pyproject declared >=24.4.0; installed is 25.5.0.
+Key APIs verified via CLI 2026-05-03: structlog.get_logger and structlog.configure present.
+No breaking changes for Comicast's use in 24→25 migration (get_logger/configure are stable core).
+Used in Comicast for: structured logging with trace_id per VLM decision.
+structlog 25.5.0 released 2025-11-18; latest stable.
+"""
+
+[[dependency]]
+name = "tenacity"
+version = "9.1"
+verified_date = "2026-05-03"
+verified_via = "https://tenacity.readthedocs.io/ + https://pypi.org/project/tenacity/"
+methods_used = [
+    "tenacity.retry",
+    "tenacity.stop_after_attempt",
+    "tenacity.wait_exponential",
+    "tenacity.retry_if_exception_type",
+    "tenacity.before_sleep_log",
+]
+notes = """
+Verified via CLI import 2026-05-03: retry, stop_after_attempt, wait_exponential importable.
+Used in Comicast for: retry with backoff on Anthropic and ElevenLabs API calls (429, 5xx).
+tenacity 9.1.4 released 2025-07-24; latest stable.
+"""
+
+[[dependency]]
+name = "httpx"
+version = "0.28"
+verified_date = "2026-05-03"
+verified_via = "https://www.python-httpx.org/ + https://pypi.org/project/httpx/"
+methods_used = [
+    "httpx.AsyncClient",
+    "httpx.get",
+    "httpx.post",
+    "httpx.HTTPStatusError",
+    "httpx.TimeoutException",
+]
+notes = """
+Verified via CLI import 2026-05-03: httpx.AsyncClient present.
+Used in Comicast for: any direct HTTP calls not covered by the Anthropic/ElevenLabs SDKs
+  (e.g., downloading preview audio samples during Pass 3 voice selection).
+httpx 0.28.1 released 2024-11-18; latest stable.
+"""
+
+[[dependency]]
+name = "rarfile"
+version = "4.2"
+verified_date = "2026-05-03"
+verified_via = "https://pypi.org/project/rarfile/ + https://rarfile.readthedocs.io/faq.html"
+methods_used = [
+    "rarfile.RarFile",
+    "rarfile.RarFile.namelist",
+    "rarfile.RarFile.read",
+    "rarfile.tool_setup",
+    "rarfile.UNRAR_TOOL",
+    "rarfile.BSDTAR_TOOL",
+]
+notes = """
+Verified via CLI import 2026-05-03: rarfile.RarFile present; module-level constants
+  UNRAR_TOOL='unrar', BSDTAR_TOOL='bsdtar' verified.
+System binary required: unrar (preferred) or bsdtar (fallback).
+Windows: set rarfile.UNRAR_TOOL = r'<full path to UnRAR.exe>' at startup (no PATH mutation).
+bsdtar limitations: no multi-volume, no solid, no password, no RARVM archives.
+CBR path is documentary-only at F1; smoke-test source format is PDF.
+rarfile 4.2 released 2024-04-03; latest stable.
+"""
+
+# ─── DEVELOPMENT DEPENDENCIES (6) ──────────────────────────────────────────
+
+[[dependency]]
+name = "hypothesis"
+version = "6.152"
+verified_date = "2026-05-03"
+verified_via = "https://hypothesis.readthedocs.io/ + https://pypi.org/project/hypothesis/"
+methods_used = [
+    "hypothesis.given",
+    "hypothesis.settings",
+    "hypothesis.strategies",
+    "hypothesis.strategies.text",
+    "hypothesis.strategies.integers",
+    "hypothesis.strategies.lists",
+]
+notes = """
+Verified via CLI import 2026-05-03: hypothesis.given, hypothesis.strategies importable.
+Used in Comicast for: L3 property-based tests (pipeline idempotence, invariants).
+hypothesis 6.152.4 released ~2026-05; latest stable in 6.x line.
+"""
+
+[[dependency]]
+name = "pytest"
+version = "9.0"
+verified_date = "2026-05-03"
+verified_via = "https://docs.pytest.org/ + https://pypi.org/project/pytest/"
+methods_used = [
+    "pytest",
+    "pytest -m",
+    "pytest --cov",
+    "pytest.mark",
+    "pytest.fixture",
+    "pytest.raises",
+    "pytest.approx",
+]
+notes = """
+MAJOR VERSION BUMP: pyproject declared >=8.3.0; installed is 9.0.3.
+pytest 9.0 API is backward-compatible for the standard fixtures/marks used in Comicast.
+Verified via CLI 2026-05-03: pytest.__version__ = '9.0.3'.
+pytest 9.0.3 released 2025-12-09; latest stable.
+"""
+
+[[dependency]]
+name = "pytest-cov"
+version = "7.1"
+verified_date = "2026-05-03"
+verified_via = "https://pytest-cov.readthedocs.io/ + https://pypi.org/project/pytest-cov/"
+methods_used = [
+    "pytest --cov",
+    "pytest --cov-report",
+]
+notes = """
+Verified via CLI import 2026-05-03: pytest-cov 7.1.0 installed.
+Used in Comicast for: coverage reporting in CI (make check-all).
+pytest-cov 7.1.0 released ~2025-12; latest stable.
+"""
+
+[[dependency]]
+name = "ruff"
+version = "0.15"
+verified_date = "2026-05-03"
+verified_via = "https://docs.astral.sh/ruff/ + https://pypi.org/project/ruff/"
+methods_used = [
+    "ruff check",
+    "ruff format",
+    "ruff check --fix",
+]
+notes = """
+Ruff uses 0.x versioning (not yet 1.0). Major version is 0 for all releases.
+Version comparison uses MAJOR only per verifier (both installed and declared are 0.x).
+ruff 0.15.12 installed; pyproject declared >=0.7.0. Both are 0.x — major match OK.
+ruff 0.15.12 released ~2026-04; latest stable.
+"""
+
+[[dependency]]
+name = "mypy"
+version = "1.20"
+verified_date = "2026-05-03"
+verified_via = "https://mypy.readthedocs.io/ + https://pypi.org/project/mypy/"
+methods_used = [
+    "mypy --strict",
+    "mypy src",
+]
+notes = """
+Verified via CLI 2026-05-03: mypy 1.20.2 installed.
+Used in Comicast for: static type checking (make check-all).
+mypy 1.20.2 released ~2026-04; latest stable.
+"""
+
+[[dependency]]
+name = "pre-commit"
+version = "4.6"
+verified_date = "2026-05-03"
+verified_via = "https://pre-commit.com/ + https://pypi.org/project/pre-commit/"
+methods_used = [
+    "pre-commit run",
+    "pre-commit install",
+    "pre-commit run --all-files",
+]
+notes = """
+Verified via CLI import 2026-05-03: pre-commit 4.6.0 installed.
+pre-commit hooks installed in .git/hooks/pre-commit (F0-T04).
+pre-commit 4.6.0 released ~2025-11; latest stable.
+"""
