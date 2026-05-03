@@ -42,14 +42,15 @@ def extract_cast(
     """
     if not pages:
         raise ValueError("No pages provided for cast extraction")
-    pages_to_send = pages[: min(len(pages), max_pages)]
+    pages_to_send = pages[:max_pages]
 
     log.info("vision.cast.start", n_pages=len(pages_to_send), series=series_name)
 
     # Phase 1 pragmatic approach: send pages one at a time, accumulate, dedupe by id.
     accumulated: dict[str, dict[str, object]] = {}
+    parse_failures = 0
     for p in pages_to_send:
-        b64 = client.encode_image(p.read_bytes())
+        b64 = AnthropicClient.encode_image(p.read_bytes())
         raw = client.call_with_image(
             system=CAST_EXTRACTION_SYSTEM,
             image_b64=b64,
@@ -59,6 +60,7 @@ def extract_cast(
         try:
             data = json.loads(_strip_fences(raw))
         except json.JSONDecodeError as e:
+            parse_failures += 1
             log.warning("vision.cast.parse_fail", page=str(p), error=str(e))
             continue
         for entry in data.get("cast", []):
@@ -66,6 +68,15 @@ def extract_cast(
             if not cid or cid in accumulated:
                 continue
             accumulated[cid] = entry
+
+    # Fail-fast guard: if every page failed to parse, the pipeline must not
+    # silently proceed with an empty cast (Risk 4 — silent quality regression).
+    # An empty CastFile produced from a 0-success run is indistinguishable from
+    # a legitimate "no recurring named characters" result downstream in Pass 2b.
+    if parse_failures == len(pages_to_send) and pages_to_send:
+        raise RuntimeError(
+            f"vision.cast: all {len(pages_to_send)} pages failed JSON parse — cannot build CastFile"
+        )
 
     cast = CastFile.model_validate({"series_name": series_name, "cast": list(accumulated.values())})
     log.info("vision.cast.done", n_characters=len(cast.cast))

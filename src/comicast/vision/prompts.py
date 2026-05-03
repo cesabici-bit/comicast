@@ -39,6 +39,4 @@ Return STRICT JSON matching this schema:
 }
 """
 
-CAST_EXTRACTION_USER = (
-    """Examine these pages and extract the cast as JSON. Series: {series_name}."""
-)
+CAST_EXTRACTION_USER = "Examine these pages and extract the cast as JSON. Series: {series_name}."
