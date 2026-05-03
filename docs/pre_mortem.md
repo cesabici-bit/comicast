@@ -3,10 +3,10 @@
 For each risk in `spec.md` sez. 9, this file enumerates concrete test cases that prevent regression.
 Risk 5 and Risk 6 were discovered during F2 and F1 respectively; they are not in the original spec.
 
-> **Authority note:** Where this file conflicts with the mitigation language in `spec.md` sez. 9
-> (e.g., field name `type` vs. `bubble_type`; `[reflective]` vs. `[internal monologue]`), this
-> file is authoritative until T11.5 normalizes `spec.md`. F3 implementers MUST follow the
-> reconciled text here, not the pre-T11.5 wording in `spec.md`.
+> **Note (post-T11.5):** `spec.md` sez. 9 was normalized in T11.5 (this commit) to use the
+> reconciled wording (`type` field instead of `bubble_type`, `[reflective]` instead of
+> `[internal monologue]`, etc.). This pre-mortem and `spec.md` are now aligned; the historical
+> override is no longer needed.
 
 ---
 
