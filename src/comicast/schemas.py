@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class BubbleType(StrEnum):
@@ -34,6 +34,12 @@ class Bubble(BaseModel):
     type: BubbleType
     bbox: Bbox
     confidence: Confidence
+
+    @model_validator(mode="after")
+    def _sfx_uses_reserved_speaker(self) -> Bubble:
+        if self.type is BubbleType.SFX and self.speaker_id != "__sfx__":
+            raise ValueError(f"SFX bubble must use speaker_id='__sfx__', got {self.speaker_id!r}")
+        return self
 
 
 class Panel(BaseModel):

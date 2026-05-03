@@ -69,6 +69,28 @@ def test_sfx_must_use_sfx_speaker_id() -> None:
     assert b.speaker_id == "__sfx__"
 
 
+def test_sfx_rejects_non_sfx_speaker() -> None:
+    """SFX bubbles MUST use __sfx__ — any other speaker_id is rejected."""
+    with pytest.raises(ValidationError, match="__sfx__"):
+        Bubble(
+            text="KRRAAANG!",
+            speaker_id="mark_grayson",
+            emotion="loud",
+            type=BubbleType.SFX,
+            bbox=(0, 0, 1, 1),
+            confidence=0.99,
+        )
+
+
+def test_series_profile_rejects_duplicate_cast_ids() -> None:
+    """SeriesProfile.cast_ids_unique validator catches duplicate ids."""
+    entry = lambda i: CastEntry(  # noqa: E731
+        id=i, canonical_name="X", description="ten chars!"
+    )
+    with pytest.raises(ValidationError, match="Duplicate"):
+        SeriesProfile(series_name="Invincible", cast=[entry("mark"), entry("mark")])
+
+
 def test_panel_orders_bubbles() -> None:
     p = Panel(order=1, bubbles=[])
     assert p.order == 1
