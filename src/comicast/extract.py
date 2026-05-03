@@ -83,8 +83,33 @@ def _extract_cbz(source: Path, out_dir: Path) -> list[Path]:
 
 
 def _extract_pdf(source: Path, out_dir: Path, dpi: int) -> list[Path]:
-    """Stub — implemented in T20."""
-    raise NotImplementedError("T20 implements PDF extraction")
+    """Convert PDF pages to PNG using pdf2image (requires poppler).
+
+    Poppler is discovered via the POPPLER_PATH environment variable when set
+    (programmatic injection, NOT PATH mutation, per CLAUDE.md gotcha and
+    docs/research/F1-extraction.md §1.1). When unset, pdf2image falls back
+    to PATH lookup; if poppler is also missing from PATH, the call raises
+    pdf2image.exceptions.PDFInfoNotInstalledError (typed, fail-fast).
+
+    See docs/research/F1-extraction.md for system dep notes.
+    """
+    import os
+
+    from pdf2image import convert_from_path  # imported lazily to avoid poppler at import time
+
+    t0 = time.perf_counter()
+    poppler_path: str | None = os.environ.get("POPPLER_PATH") or None
+    if poppler_path is not None:
+        images = convert_from_path(str(source), dpi=dpi, poppler_path=poppler_path)
+    else:
+        images = convert_from_path(str(source), dpi=dpi)
+    out_paths: list[Path] = []
+    for idx, img in enumerate(images, start=1):
+        out = out_dir / f"page_{idx:03d}.png"
+        img.convert("RGB").save(out, "PNG")
+        out_paths.append(out)
+    log.debug("extract.pdf.done", n=len(out_paths), elapsed_s=time.perf_counter() - t0)
+    return out_paths
 
 
 def _extract_cbr(source: Path, out_dir: Path) -> list[Path]:
