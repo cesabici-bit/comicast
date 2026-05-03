@@ -1,13 +1,13 @@
 """L3 property-based tests for schemas.
 
 This module uses Hypothesis to verify that schema invariants hold for arbitrary inputs.
-Notable: T13 fix-up enforced SFX bubbles to use reserved __sfx__ speaker_id; we skip
-invalid combos via assume() to avoid unsatisfiable filter ratios.
+Notable: T14 fix-up uses co-generated strategy to avoid invalid SFX combos rejected by
+`Bubble._sfx_uses_reserved_speaker`.
 """
 
 from __future__ import annotations
 
-from hypothesis import assume, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from comicast.schemas import (
@@ -17,12 +17,24 @@ from comicast.schemas import (
     SeriesProfile,
 )
 
+# Co-generated strategy: avoid invalid SFX-speaker_id combos that would be rejected
+# by Bubble._sfx_uses_reserved_speaker validator (schemas.py:38-42).
+btype_and_speaker = st.one_of(
+    st.tuples(
+        st.just(BubbleType.SFX),
+        st.just("__sfx__"),
+    ),
+    st.tuples(
+        st.sampled_from([BubbleType.DIALOGUE, BubbleType.THOUGHT, BubbleType.NARRATION]),
+        st.text(alphabet="abcdefghijklmnopqrstuvwxyz_0123456789", min_size=1, max_size=64),
+    ),
+)
+
 
 @given(
     text=st.text(min_size=1, max_size=500),
-    speaker_id=st.text(alphabet="abcdefghijklmnopqrstuvwxyz_0123456789", min_size=1, max_size=64),
+    btype_and_speaker=btype_and_speaker,
     emotion=st.sampled_from(["casual", "angry", "sad", "happy", "afraid", "neutral"]),
-    btype=st.sampled_from(list(BubbleType)),
     x1=st.integers(0, 5000),
     y1=st.integers(0, 5000),
     w=st.integers(1, 1000),
@@ -32,9 +44,8 @@ from comicast.schemas import (
 @settings(max_examples=200, deadline=None)
 def test_bubble_round_trip(
     text: str,
-    speaker_id: str,
+    btype_and_speaker: tuple[BubbleType, str],
     emotion: str,
-    btype: BubbleType,
     x1: int,
     y1: int,
     w: int,
@@ -43,10 +54,10 @@ def test_bubble_round_trip(
 ) -> None:
     """Any valid Bubble must round-trip through JSON.
 
-    T13 fix-up: SFX bubbles must use reserved __sfx__; skip invalid combos.
+    The strategy avoids the SFX-vs-non-__sfx__ invalid combo enforced by the
+    schema validator `_sfx_uses_reserved_speaker` (schemas.py).
     """
-    # T13 fix-up: SFX must use reserved __sfx__; skip invalid combos
-    assume(not (btype is BubbleType.SFX and speaker_id != "__sfx__"))
+    btype, speaker_id = btype_and_speaker
 
     b = Bubble(
         text=text,
@@ -62,19 +73,20 @@ def test_bubble_round_trip(
 
 
 @given(
-    name=st.text(alphabet="abcdefghijklmnopqrstuvwxyz_0123456789", min_size=1, max_size=32),
+    cast_id=st.text(alphabet="abcdefghijklmnopqrstuvwxyz_0123456789", min_size=1, max_size=32),
     canonical=st.text(min_size=1, max_size=64),
     desc=st.text(min_size=10, max_size=500),
     conf=st.floats(0.0, 1.0, allow_nan=False, allow_infinity=False),
 )
 @settings(max_examples=100, deadline=None)
-def test_cast_entry_round_trip(name: str, canonical: str, desc: str, conf: float) -> None:
+def test_cast_entry_round_trip(cast_id: str, canonical: str, desc: str, conf: float) -> None:
     """Any valid CastEntry must round-trip through JSON."""
-    c = CastEntry(id=name, canonical_name=canonical, description=desc, confidence=conf)
+    c = CastEntry(id=cast_id, canonical_name=canonical, description=desc, confidence=conf)
     assert CastEntry.model_validate_json(c.model_dump_json()) == c
 
 
 @given(series=st.text(min_size=1, max_size=64))
+@settings(max_examples=100, deadline=None)
 def test_series_profile_starts_with_zero_version(series: str) -> None:
     """SeriesProfile always initializes with version=0."""
     p = SeriesProfile(series_name=series)
