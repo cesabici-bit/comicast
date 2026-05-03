@@ -23,6 +23,7 @@ dependencies = [
     "rarfile>=4.2",
     "Pillow>=10.4.0",
     "pydub>=0.25.1",
+    "audioop-lts>=0.2.2 ; python_version >= '3.13'",  # PYAUDIOOP-001 fix: pydub uses stdlib audioop, removed in Py 3.13 (PEP 594)
     "ffmpeg-python>=0.2.0",
     "mutagen>=1.47.0",
     "pydantic>=2.9.0",

@@ -142,6 +142,28 @@ ALTERNATIVE: evaluate soundfile + ffmpeg-python for pure-Python audio concatenat
   (pydub is essentially a wrapper around ffmpeg). Decision for F2.
 pydub 0.25.1 is the latest available — no Python 3.13 fix upstream.
 Runtime dependency: ffmpeg binary must be on PATH (or FFMPEG_PATH env var).
+RESOLVED 2026-05-03 (F2 pre-T10): audioop-lts 0.2.2 added below; pydub import verified
+  on Python 3.13.2 (cp313-abi3-win_amd64 wheel installed, AudioSegment importable).
+"""
+
+[[dependency]]
+name = "audioop-lts"
+version = "0.2"
+verified_date = "2026-05-03"
+verified_via = "https://pypi.org/project/audioop-lts/ + https://github.com/AbstractUmbra/audioop"
+methods_used = [
+    "audioop (transitive — imported by pydub.utils on Python 3.13+)",
+]
+notes = """
+PYAUDIOOP-001 FIX (KNOWN_ISSUES.md). Backport of the stdlib audioop C extension
+removed by PEP 594 in Python 3.13. Drop-in: provides 'audioop' import name so
+pydub 0.25.1's `import audioop` succeeds on Python 3.13.
+Conditional install in pyproject.toml: only added when python_version >= '3.13'
+(stdlib audioop is still present and used on Python <= 3.12).
+Wheel installed on host: audioop_lts-0.2.2-cp313-abi3-win_amd64.
+Verification 2026-05-03: `from pydub import AudioSegment` now succeeds on Python 3.13.2.
+audioop-lts 0.2.2 released 2025-04-21; latest stable.
+Maintainer: AbstractUmbra (also maintains discord.py forks); pure C port, no Python deps.
 """
 
 [[dependency]]
