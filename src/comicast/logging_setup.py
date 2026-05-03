@@ -1,16 +1,18 @@
 """Centralized structlog configuration.
 
 Every entry point (CLI, test fixtures, services) calls setup_logging() once.
-get_logger(name) returns a bound logger ready to use.
+Trace_ids are bound per VLM decision (Pass 2a/2b/3) so audio regressions
+(pre_mortem.md Risk 4) can be traced back to the originating page/panel.
 """
 
 from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
+from typing import Any, cast
 
 import structlog
+from structlog.typing import FilteringBoundLogger
 
 
 def setup_logging(level: str = "INFO", json_output: bool = True) -> None:
@@ -20,10 +22,17 @@ def setup_logging(level: str = "INFO", json_output: bool = True) -> None:
         level: Standard logging level (DEBUG/INFO/WARNING/ERROR).
         json_output: If True, emit JSON lines. If False, human-readable colored output.
     """
+    lvl = getattr(logging, level.upper())
+    # NOTE: PrintLoggerFactory handles structlog records (single write).
+    # basicConfig stream is for third-party stdlib loggers (anthropic, httpx, etc.).
+    # Both go to stderr by design — they are NOT duplicates.
+    # force=True replaces existing handlers so subsequent setup_logging() calls
+    # actually re-apply the level (basicConfig is a no-op when handlers exist).
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stderr,
-        level=getattr(logging, level.upper()),
+        level=lvl,
+        force=True,
     )
 
     processors: list[Any] = [
@@ -40,13 +49,13 @@ def setup_logging(level: str = "INFO", json_output: bool = True) -> None:
 
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, level.upper())),
+        wrapper_class=structlog.make_filtering_bound_logger(lvl),
         context_class=dict,
         logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
         cache_logger_on_first_use=True,
     )
 
 
-def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+def get_logger(name: str) -> FilteringBoundLogger:
     """Return a structlog logger bound to the given name."""
-    return structlog.get_logger(name)  # type: ignore[no-any-return]
+    return cast(FilteringBoundLogger, structlog.get_logger(name))
