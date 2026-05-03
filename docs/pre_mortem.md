@@ -83,7 +83,7 @@ riferimento."
 ## Risk 5 (NEW — discovered during F2): Anthropic prompt cache TTL expires mid-volume
 
 If processing a volume takes >5 min and the cache is ephemeral, Pass 2b calls late in the volume
-miss the cache and pay full input cost. ElevenLabs v3 cache TTL for ephemeral blocks is 5 minutes
+miss the cache and pay full input cost. Anthropic ephemeral cache TTL is 5 minutes
 per `docs/research/F1-anthropic.md`.
 
 **Test cases:**
