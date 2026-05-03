@@ -162,7 +162,7 @@ Verified via CLI import 2026-05-03: ffmpeg.input, ffmpeg.output, ffmpeg.run all 
 System binary required: ffmpeg. Must be on PATH or FFMPEG_PATH env var.
 ffmpeg-python 0.2.0 is the latest (released 2020); project is stable/mature, no active dev.
 Used in Comicast for: audio format conversion (mp3→m4b chapter markers), probing audio duration.
-Note: the package name on PyPI is 'ffmpeg-python' but 'import ffmpeg' (not import ffmpeg_python).
+Note: PyPI install name is 'ffmpeg-python'; Python import name is 'ffmpeg' (not ffmpeg_python).
 """
 
 [[dependency]]
@@ -294,8 +294,6 @@ verified_date = "2026-05-03"
 verified_via = "https://www.python-httpx.org/ + https://pypi.org/project/httpx/"
 methods_used = [
     "httpx.AsyncClient",
-    "httpx.get",
-    "httpx.post",
     "httpx.HTTPStatusError",
     "httpx.TimeoutException",
 ]
@@ -347,7 +345,7 @@ methods_used = [
 notes = """
 Verified via CLI import 2026-05-03: hypothesis.given, hypothesis.strategies importable.
 Used in Comicast for: L3 property-based tests (pipeline idempotence, invariants).
-hypothesis 6.152.4 released ~2026-05; latest stable in 6.x line.
+hypothesis 6.152.4 released ~2026-05 (date not confirmed); latest stable in 6.x line.
 """
 
 [[dependency]]

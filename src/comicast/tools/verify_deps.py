@@ -35,10 +35,10 @@ def main() -> int:
         except PackageNotFoundError:
             failures.append(f"{name}: NOT INSTALLED (expected {expected})")
             continue
-        # Allow equal or higher minor (we declared >=X.Y in pyproject)
+        # Accept any installed version in the same major line (pyproject uses >=X.Y pins)
         if installed.split(".")[0] != expected.split(".")[0]:
             failures.append(
-                f"{name}: major version drift " f"(installed={installed}, declared={expected})"
+                f"{name}: major version drift (installed={installed}, declared={expected})"
             )
         else:
             print(f"  OK  {name} {installed} (declared {expected})")
