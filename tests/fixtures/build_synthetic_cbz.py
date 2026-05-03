@@ -2,6 +2,13 @@
 
 This is a build script — run once to produce `tests/fixtures/synth_3pages.cbz`.
 The CBZ is committed to the repo (legal — synthetic, no copyright).
+
+Determinism guarantees (required for L4 golden role — see KNOWN_ISSUES EXT-01):
+- ZipInfo.date_time pinned to (2026, 1, 1, 0, 0, 0) so the ZIP envelope is
+  byte-stable across rebuilds (default writestr() embeds time.localtime()).
+- PNG bytes are deterministic within a single Pillow major version.
+  Built/verified with Pillow 12.x. If rebuilt under a different Pillow major,
+  expect drift — pin Pillow in dev deps and rebuild on the same OS.
 """
 
 from __future__ import annotations
@@ -22,7 +29,12 @@ def build(out_path: Path) -> None:
             d.text((50, 50), f"Page {i}", fill="white")
             buf = io.BytesIO()
             img.save(buf, format="PNG")
-            zf.writestr(f"page_{i:03d}.png", buf.getvalue())
+            info = zipfile.ZipInfo(
+                filename=f"page_{i:03d}.png",
+                date_time=(2026, 1, 1, 0, 0, 0),
+            )
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(info, buf.getvalue())
 
 
 if __name__ == "__main__":
