@@ -17,6 +17,7 @@ build/
 .env.local
 
 # Runtime data (never commit)
+data/raw/
 data/work/
 data/series_profiles/*.local.json   # personal/cloning configs (Phase 2)
 *.mp3
