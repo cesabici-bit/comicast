@@ -49,19 +49,28 @@ across all appearances" (in suit vs out, civilian vs costumed). HITL corrections
 
 ## Risk 3: Cost runaway
 
-**Test cases:**
+**Test cases (committed in F3-T16, `tests/unit/test_budget.py`):**
 
-- `tests/unit/test_budget_guard_halts_pipeline.py::test_fails_fast_at_2x_estimate`:
-  Mock cost reaches 2× estimate → pipeline raises `BudgetExceededError` and halts.
-- `tests/unit/test_budget_guard_warns_at_1.5x.py::test_warns_at_soft_threshold`:
-  Mock cost reaches 1.5× estimate → emits structured warning (`structlog` event
-  `budget.soft_warning`), pipeline continues.
-- `tests/unit/test_budget_tracker_records_per_call.py`:
-  Each API call increments tracker; tracker persists to `budget.log`.
+- `test_guard_halts_at_2x_estimate`: spend > `2 × estimate_usd` → `assert_under_hard_limit()`
+  raises `BudgetExceededError`, halting the pipeline.
+- `test_guard_warns_at_estimate`: spend > `estimate_usd` (1.0×) → `is_over_estimate()` returns
+  True; pipeline continues. NOTE: a dedicated 1.5× soft-threshold warning event
+  (`budget.soft_warning`) is **deferred** to F3.6 BudgetGuard wrapper (see KNOWN_ISSUES `BG-03`).
+- `test_record_anthropic_cost_matches_sonnet_4_6_pricing` and
+  `test_record_anthropic_with_cache_write`: L2 oracle tests with closed-form expected values
+  pinned to `docs/research/F1-anthropic.md:80-84`. Catch a coefficient drift or formula
+  inversion (e.g. the `(input − cached)` subtraction bug found in T16 review).
+- `test_record_elevenlabs_cost_matches_kchar_rate`: L2 oracle test pinned to
+  `docs/research/F1-elevenlabs.md:316,442` (premium-voice ceiling).
+- `test_persist_to_log`: each call appends a row to `budget.log` with `cost_source` field.
 
-**Implementation guard:** `comicast.budget.BudgetGuard` is a context manager that wraps the entire
-pipeline. Every API client (Anthropic, ElevenLabs) reports cost before/after via callback. Hard
-ceiling is 2× per-volume cost estimate; soft warning at 1.5×.
+**Implementation guard (F3-T16, partial — wrapper pending):**
+`comicast.budget.BudgetTracker` exposes `assert_under_hard_limit()` (raises unconditionally —
+intentionally NOT using Python `assert` so `python -O` cannot strip the guard). Each API client
+calls it after recording cost (e.g. `comicast.anthropic_client.AnthropicClient._call`). The
+**`BudgetGuard` context-manager wrapper** that automates this for the whole pipeline is
+**deferred to F3.6 (T39 orchestrator)** — see KNOWN_ISSUES `BG-02`. Hard ceiling is
+`hard_multiplier × estimate_usd` (default 2×). Soft 1.5× warning is not yet emitted.
 
 ---
 
