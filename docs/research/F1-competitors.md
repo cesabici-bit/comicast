@@ -138,6 +138,12 @@ These are the most direct competitive threat. None of them fully solve the probl
 
 ---
 
+### Excluded candidates (surfaced by S01, not entered)
+
+- **Musely** (surfaced by S01): excluded — unrelated product (AI photo/image text editor, musely.ai; no audio output, no comic pipeline relevance).
+
+---
+
 ## 4. Category B — Generic Multi-Character TTS / Audiobook Generators
 
 These handle prose text well but have no path to comics.
@@ -146,12 +152,12 @@ These handle prose text well but have no path to comics.
 
 ### 4.1 Narratemi
 
-- **URL:** https://narratemi.com/ (primary — fetched via S07)
+- **URL:** https://narratemi.com/ (secondary-corroborated — reached via S07 search snippet, not directly fetched)
 - **What it does:** Web-based audiobook generator. Ingests prose text (ePub, text), detects speaker attribution from dialogue tags in text ("said Mark"), assigns distinct AI voices to each character automatically. 7 TTS engine options including ElevenLabs.
 - **Comic-specific?** No — requires text input. No image/CBZ/CBR ingestion; no OCR; no vision pipeline.
 - **Speaker attribution?** Yes, from text — NLP-based ("said X" patterns). Does NOT work on comics because it has no visual understanding.
 - **Voice quality:** High — can use ElevenLabs as back-end.
-- **Pricing:** Pay-per-use, $20–$80 for a full audiobook; 50,000 free characters to start (secondary-corroborated: search snippet S07, site content S07).
+- **Pricing:** Pay-per-use, $20–$80 for a full audiobook; 50,000 free characters to start (secondary-corroborated: search snippet S07).
 - **OSS/closed:** Closed source (SaaS).
 - **Comicast gap:** No comic image input path. Speaker attribution works only from text dialogue tags. Requires pre-existing clean text transcript, which comics do not have. The Comicast vision pipeline is the missing piece.
 
@@ -358,7 +364,7 @@ Applying the genius-lab framework (≥4/5 → monetise):
 **Score: YES (strong evidence)**
 
 - Global audiobook market: $8.7–14B in 2026 (multiple analyst sources; see §12). Fiction captures 63% of share.
-- Comic/graphic novel readership: Estimated 6–8 million active comic readers in North America alone (#UNVERIFIED exact current figure — conservative proxy: Comixology had ~4M active subscribers before Amazon absorption; Webtoon reports 90M monthly users globally as of 2024 per secondary sources).
+- Comic/graphic novel readership: Estimated 6–8 million active comic readers in North America alone (# UNVERIFIED exact current figure — conservative proxy: Comixology had ~4M active subscribers before Amazon absorption; Webtoon reports 90M monthly users globally as of 2024 per secondary sources).
 - Manga audiobook search interest: Active searches, TikTok content about "how to make voice read the manga" — demonstrated user demand (S06).
 - The "personal use audiobook generator" segment already has multiple paid tools (Narratemi $20–80/book, Speechify $139/year, Murf from $29/month). The market pays.
 - **Conservatively: >100,000 potential users** exist who own digital comics and would pay to listen to them with quality multi-character audio. The segment is narrower than general audiobooks, but 10,000 paying customers is achievable at a $10–15/month or $25–50/generation price point.
@@ -381,7 +387,7 @@ Applying the genius-lab framework (≥4/5 → monetise):
 
 **Score: YES (moderate-strong)**
 
-- Cannot be done with free tools today: Seeneva has 64.8% speaker attribution at best and Android-quality TTS. No free OSS pipeline integrates all stages.
+- Cannot be done with free tools today: No free tool does speaker attribution at all — Seeneva and ReadLoudly read all bubbles with a single TTS voice. The closest research prototype (arXiv 2509.15253) reaches only 64.8% speaker attribution accuracy with trained-per-comic classifiers and no HITL loop. No free OSS pipeline integrates all stages.
 - Technical barriers: requires a vision LLM (API cost/access), ElevenLabs API (API key + cost), correct panel ordering, HITL loop, series profile management.
 - Accumulating series profiles are a **network-effect moat**: user who has processed 20 volumes of Invincible has a better profile than a new entrant starting cold.
 - Caveat: the approach uses commodity APIs (Claude, ElevenLabs) — anyone with API access and the same architecture could build this. Replication time for a skilled engineer: ~3–4 weeks. Not a patent-level moat.
@@ -480,13 +486,13 @@ The following points should appear in the public README to establish Comicast's 
 | ElevenReader pricing | https://elevenreader.io/pricing | 2026-05-03 (via S15) | Free 10h/mo, Ultra $11/mo — no comic format support |
 | arXiv 2509.15253 | https://arxiv.org/html/2509.15253v1 | 2026-05-03 | 64.8% speaker accuracy, trained ResNet-50, GPT-4, no HITL, no release |
 | arXiv 2505.13082 | https://arxiv.org/abs/2505.13082 | 2026-05-03 | MultiActor-Audiobook, prose-only, no visual pipeline |
-| Narratemi | https://narratemi.com/ | 2026-05-03 (via S07) | $20–80/book, text-only, NLP speaker attribution, no comic support |
 
 ### Secondary-corroborated (search snippet + secondary review source, not direct fetch)
 
 | Source | Corroboration | Key fact |
 |---|---|---|
-| GraphicAudio layoffs Feb 2026 | S18 + MysteryLores S03 | ~50% staff cut, parent RB Media, signals fragility of human-production model |
+| Narratemi pricing + features | S07 search snippet; https://narratemi.com/ not directly fetched | $20–80/book, text-only, NLP speaker attribution, no comic support |
+| GraphicAudio layoffs Feb 2026 | S18; CWA press release https://cwa-union.org/news/releases/graphic-audio-united-cwa-workers-condemn-rbmedia-layoffs-targeting-union-members | ~50% staff cut, parent RB Media, ~22 bargaining-unit positions eliminated, signals fragility of human-production model |
 | Speechify pricing ~$139/year | S04 multiple comparison articles | General TTS market pricing reference |
 | Murf.ai pricing from $29/month | S04 multiple comparison articles | General TTS market pricing reference |
 | Audiobook market $8.7–14B 2026 | S12 multiple analyst sources (Mordor Intelligence, Coherent Market, Fortune Business Insights) | Market size baseline |
