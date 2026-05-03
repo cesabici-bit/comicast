@@ -3,6 +3,11 @@
 For each risk in `spec.md` sez. 9, this file enumerates concrete test cases that prevent regression.
 Risk 5 and Risk 6 were discovered during F2 and F1 respectively; they are not in the original spec.
 
+> **Authority note:** Where this file conflicts with the mitigation language in `spec.md` sez. 9
+> (e.g., field name `type` vs. `bubble_type`; `[reflective]` vs. `[internal monologue]`), this
+> file is authoritative until T11.5 normalizes `spec.md`. F3 implementers MUST follow the
+> reconciled text here, not the pre-T11.5 wording in `spec.md`.
+
 ---
 
 ## Risk 1: SFX/onomatopee/narrazione confondono speaker attribution
@@ -48,6 +53,9 @@ across all appearances" (in suit vs out, civilian vs costumed). HITL corrections
 
 - `tests/unit/test_budget_guard_halts_pipeline.py::test_fails_fast_at_2x_estimate`:
   Mock cost reaches 2× estimate → pipeline raises `BudgetExceededError` and halts.
+- `tests/unit/test_budget_guard_warns_at_1.5x.py::test_warns_at_soft_threshold`:
+  Mock cost reaches 1.5× estimate → emits structured warning (`structlog` event
+  `budget.soft_warning`), pipeline continues.
 - `tests/unit/test_budget_tracker_records_per_call.py`:
   Each API call increments tracker; tracker persists to `budget.log`.
 
