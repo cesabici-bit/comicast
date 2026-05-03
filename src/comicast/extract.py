@@ -46,6 +46,13 @@ def extract_pages(
     fmt = detect_format(source)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # Fail-fast: unsupported formats must raise BEFORE the idempotency-skip
+    # check, otherwise stale page_*.png from a prior run would silently mask
+    # the NotImplementedError. When CBR is implemented (KNOWN_ISSUES EXT-10),
+    # reconcile this branch with the idempotency check below.
+    if fmt == "cbr":
+        return _extract_cbr(source, out_dir)
+
     existing = sorted(out_dir.glob("page_*.png"))
     if existing and not force:
         log.info(
@@ -57,8 +64,6 @@ def extract_pages(
         pages = _extract_cbz(source, out_dir)
     elif fmt == "pdf":
         pages = _extract_pdf(source, out_dir, target_dpi)
-    elif fmt == "cbr":
-        pages = _extract_cbr(source, out_dir)
     else:
         raise ValueError(f"Unsupported format: {fmt}")
 
@@ -113,5 +118,11 @@ def _extract_pdf(source: Path, out_dir: Path, dpi: int) -> list[Path]:
 
 
 def _extract_cbr(source: Path, out_dir: Path) -> list[Path]:
-    """Stub — implemented in T21."""
-    raise NotImplementedError("T21 implements CBR extraction")
+    """CBR extraction is deferred in v1.
+
+    Per plan T21 Step 1 fallback (and F1-extraction.md decision): CBR is rare for
+    digital comics (CBZ dominates) and would require an `unrar` or `bsdtar` runtime
+    binary. Users with .cbr files should convert to .cbz with 7-Zip before running
+    Comicast.
+    """
+    raise NotImplementedError("CBR not supported in v1. Convert to CBZ via 7-Zip first.")
