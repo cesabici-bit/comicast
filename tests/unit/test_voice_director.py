@@ -149,3 +149,92 @@ def test_build_directed_script_uses_default_narrator_voice_fallback() -> None:
         script, profile=profile, default_narrator_voice="EL_narrator_default"
     )
     assert directed.pages[0].panels[0].bubbles[0].voice_id == "EL_narrator_default"
+
+
+def test_narration_with_shouted_emotion_keeps_shouts_tag_no_reflective() -> None:
+    """VOI-03 (b): NARRATION type + emotion=shouted should preserve [shouts] tag
+    WITHOUT prepending [reflective] (which is gated on THOUGHT type only, see director.py:110-111).
+
+    This test locks the design: NARRATION is a distinct type from THOUGHT,
+    and emotion tags apply uniformly regardless of type, except that THOUGHT
+    type specifically adds [reflective] prefix in addition to the emotion tag.
+    """
+    bubble = Bubble(
+        text="The blast was incredible!",
+        speaker_id="__narrator__",
+        emotion="shouted",
+        type=BubbleType.NARRATION,
+        bbox=(0, 0, 1, 1),
+        confidence=0.95,
+    )
+    script = ScriptFile(
+        series_name="Invincible",
+        volume_id="v1",
+        pages=[PageScript(page=1, panels=[Panel(order=1, bubbles=[bubble])])],
+    )
+    profile = _profile_with_voice()
+    profile.voice_archetype_library["__narrator__"] = "EL_narrator"
+    directed = build_directed_script(script, profile=profile)
+    directed_bubble = directed.pages[0].panels[0].bubbles[0]
+
+    # Should have [shouts] because emotion="shouted"
+    assert "[shouts]" in directed_bubble.directed_text
+    # Should NOT have [reflective] because NARRATION type, not THOUGHT type
+    assert "[reflective]" not in directed_bubble.directed_text
+    # Verify the exact form: emotion tag followed by text
+    assert directed_bubble.directed_text == "[shouts] The blast was incredible!"
+
+
+def test_narration_with_empty_emotion_has_no_tag() -> None:
+    """VOI-03 (c) boundary: NARRATION + emotion="" should produce directed_text
+    with no tag prefix, because emotion_to_tag("") returns "" and NARRATION type
+    doesn't prepend [reflective] unconditionally.
+    """
+    bubble = Bubble(
+        text="The story continues.",
+        speaker_id="__narrator__",
+        emotion="",
+        type=BubbleType.NARRATION,
+        bbox=(0, 0, 1, 1),
+        confidence=0.95,
+    )
+    script = ScriptFile(
+        series_name="Invincible",
+        volume_id="v1",
+        pages=[PageScript(page=1, panels=[Panel(order=1, bubbles=[bubble])])],
+    )
+    profile = _profile_with_voice()
+    profile.voice_archetype_library["__narrator__"] = "EL_narrator"
+    directed = build_directed_script(script, profile=profile)
+    directed_bubble = directed.pages[0].panels[0].bubbles[0]
+
+    # Empty emotion should produce no tag
+    assert directed_bubble.directed_text == "The story continues."
+    assert "[" not in directed_bubble.directed_text  # No tag markers
+
+
+def test_thought_with_emotion_tag_prepends_reflective() -> None:
+    """VOI-03 (b) cross-product: THOUGHT type with emotion tag should prepend [reflective]
+    in addition to the emotion tag (contrast with NARRATION, which does not).
+
+    This test strengthens the distinction: THOUGHT + emotion="shouted" should produce
+    "[reflective] [shouts] text", not just "[shouts] text".
+    """
+    bubble = Bubble(
+        text="This is overwhelming!",
+        speaker_id="mark_grayson",
+        emotion="shouted",
+        type=BubbleType.THOUGHT,
+        bbox=(0, 0, 1, 1),
+        confidence=0.9,
+    )
+    script = ScriptFile(
+        series_name="Invincible",
+        volume_id="v1",
+        pages=[PageScript(page=1, panels=[Panel(order=1, bubbles=[bubble])])],
+    )
+    directed = build_directed_script(script, profile=_profile_with_voice())
+    directed_bubble = directed.pages[0].panels[0].bubbles[0]
+
+    # THOUGHT with emotion="shouted" should have BOTH [reflective] and [shouts]
+    assert directed_bubble.directed_text == "[reflective] [shouts] This is overwhelming!"
