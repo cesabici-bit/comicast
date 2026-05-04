@@ -28,8 +28,14 @@ def test_full_vision_pipeline_mocked(tmp_path: Path) -> None:
             ]
         }
     )
+    # Dead stub: cast.py:46 calls AnthropicClient.encode_image as a class staticmethod,
+    # bypassing the injected client. Real staticmethod runs on b"x" and returns valid b64.
+    # See VIS-05 (KNOWN_ISSUES.md). Kept for plan-verbatim parity + sibling consistency.
     cast_client.encode_image.return_value = "b64"
 
+    # attr_client returns a constant {"page": 1, ...} for every call_with_image —
+    # attribute_pages trusts the model-returned page field (does not override with
+    # loop idx). Both pages.page end up == 1; T29 golden covers content fidelity.
     attr_client = MagicMock(spec=AnthropicClient)
     attr_client.call_with_image.return_value = json.dumps(
         {
@@ -76,4 +82,14 @@ def test_full_vision_pipeline_mocked(tmp_path: Path) -> None:
     assert len(cast.cast) == 1
     assert len(script.pages) == 2
     assert len(flags.flags) == 0
-    assert budget.spent_usd == 0  # mocks didn't trigger real cost recording
+
+    # Mocks short-circuit AnthropicClient._call → BudgetTracker.record() never invoked.
+    # Asserting on _records (not spent_usd) catches a regression where a handler
+    # would call budget.record() directly — spent_usd == 0 alone is structurally vacuous.
+    assert budget._records == []
+
+    # Call-count contract: catches silent page-skip / handler signature drift.
+    assert cast_client.call_with_image.call_count == 2  # 1 per page (max_pages default 30)
+    assert attr_client.call_with_image.call_count == 2  # 1 per page
+    assert nar_client.call_text.call_count == 1  # single text-only call on full script
+    nar_client.call_with_image.assert_not_called()  # narrative pass is text-only
