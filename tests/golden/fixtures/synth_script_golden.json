@@ -1,0 +1,75 @@
+{
+  "series_name": "synth_test",
+  "volume_id": "synth_v1",
+  "pages": [
+    {
+      "page": 1,
+      "panels": [
+        {
+          "order": 1,
+          "bubbles": [
+            {
+              "text": "Page 1 synthetic dialogue.",
+              "speaker_id": "synth_char_a",
+              "emotion": "neutral",
+              "type": "dialogue",
+              "bbox": [
+                50,
+                50,
+                250,
+                100
+              ],
+              "confidence": 0.95
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "panels": [
+        {
+          "order": 1,
+          "bubbles": [
+            {
+              "text": "Page 2 synthetic dialogue.",
+              "speaker_id": "synth_char_a",
+              "emotion": "neutral",
+              "type": "dialogue",
+              "bbox": [
+                50,
+                50,
+                250,
+                100
+              ],
+              "confidence": 0.95
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "page": 3,
+      "panels": [
+        {
+          "order": 1,
+          "bubbles": [
+            {
+              "text": "Page 3 synthetic dialogue.",
+              "speaker_id": "synth_char_a",
+              "emotion": "neutral",
+              "type": "dialogue",
+              "bbox": [
+                50,
+                50,
+                250,
+                100
+              ],
+              "confidence": 0.95
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
