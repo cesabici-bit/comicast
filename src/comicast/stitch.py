@@ -32,13 +32,18 @@ def stitch_clips(
 ) -> AudioSegment:
     """Concatenate clips with appropriate pauses. Scene breaks insert longer silence."""
     scene_breaks = scene_breaks_at_pages or set()
+    log.info("stitch.start", n_clips=len(clips), n_scene_breaks=len(scene_breaks))
     if not clips:
+        log.warning("stitch.empty_input", n_clips=0, duration_ms=0)
         return AudioSegment.silent(duration=0)
 
     segments: list[AudioSegment] = [
         AudioSegment.from_file(io.BytesIO(clips[0].audio), format="mp3")
     ]
     for prev, curr in zip(clips, clips[1:], strict=False):
+        # STITCH-05 (deferred to T34): scene-break is suppressed for intra-page transitions
+        # (prev.page == curr.page); only fires on page boundaries. Western mainstream comics
+        # align chapter breaks to page boundaries — see KNOWN_ISSUES.md STITCH-05.
         if curr.page in scene_breaks and prev.page != curr.page:
             pause_ms = PAUSE_INTER_SCENE_MS
         else:
