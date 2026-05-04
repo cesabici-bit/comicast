@@ -49,6 +49,7 @@ def attribute_pages(
     )
 
     page_scripts: list[PageScript] = []
+    parse_failures = 0
     for idx, page_path in enumerate(pages, start=1):
         b64 = client.encode_image(page_path.read_bytes())
         try:
@@ -67,7 +68,16 @@ def attribute_pages(
             page_scripts.append(page_script)
             log.info("vision.attribute.page_done", page=idx, n_panels=len(page_script.panels))
         except (json.JSONDecodeError, ValidationError) as e:
-            log.error("vision.attribute.page_fail", page=idx, error=str(e))
+            parse_failures += 1
+            log.warning("vision.attribute.page_fail", page=idx, error=str(e))
             continue
+
+    # Mirror cast.py:76-79 cardinality invariant: an empty ScriptFile is
+    # indistinguishable from a legitimate "volume contains no dialogue" outcome,
+    # which would silently propagate to TTS as an empty audiobook (Risk 4).
+    if pages and parse_failures == len(pages):
+        raise RuntimeError(
+            f"vision.attribute: all {len(pages)} pages failed JSON parse — cannot build ScriptFile"
+        )
 
     return ScriptFile(series_name=series_name, volume_id=volume_id, pages=page_scripts)

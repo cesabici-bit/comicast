@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 from comicast.anthropic_client import AnthropicClient
 from comicast.budget import BudgetTracker
 from comicast.schemas import CastEntry, CastFile, ScriptFile
@@ -110,3 +112,33 @@ def test_attribute_continues_on_single_page_failure(tmp_path: Path) -> None:
     )
     # 3 input pages, 1 failed → 2 successful
     assert len(script.pages) == 2
+
+
+def test_attribute_raises_when_all_pages_fail_parse(tmp_path: Path) -> None:
+    """Mirror of cast.py cardinality invariant: empty ScriptFile is indistinguishable
+    from a legitimate 'no dialogue in volume' outcome and would silently propagate
+    to TTS as empty audiobook. T22 IMP-1 fix-up established this invariant for
+    cast extraction; T25 IMP-1 mirrors it for per-page attribution."""
+
+    mock = MagicMock(spec=AnthropicClient)
+    # Every page returns invalid JSON
+    mock.call_with_image.return_value = "NOT JSON AT ALL"
+    mock.encode_image.return_value = "b64"
+
+    pages = [tmp_path / f"page_{i:03d}.png" for i in range(1, 4)]
+    for p in pages:
+        p.write_bytes(b"x")
+
+    cast = CastFile(series_name="X", cast=[])
+    budget = BudgetTracker(estimate_usd=10.0)
+
+    with pytest.raises(RuntimeError, match="all 3 pages failed JSON parse"):
+        attribute_pages(
+            pages,
+            cast=cast,
+            common_errors=[],
+            series_name="X",
+            volume_id="vol_1",
+            client=mock,
+            budget=budget,
+        )
