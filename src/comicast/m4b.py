@@ -12,19 +12,23 @@ from comicast.tts import AudioClip
 
 log = get_logger("comicast.m4b")
 
-# Heuristic: a narration bubble whose text starts like "Chapter N", "Part N",
-# "Episode N", or is in ALL CAPS with <40 chars is treated as a scene break.
+# Heuristic: a narration bubble whose text starts with a chapter keyword
+# (chapter / part / episode / prologue / epilogue / act, case-insensitive) is
+# treated as a scene break. ALL-CAPS-without-keyword heuristic deferred to T44
+# (see KNOWN_ISSUES M4B-05).
 CHAPTER_RE = re.compile(r"^\s*(chapter|part|episode|prologue|epilogue|act)\b", re.IGNORECASE)
 
 
 def detect_scene_breaks(script: ScriptFile) -> set[int]:
     """Return page numbers that begin a new scene/chapter."""
+    log.info("m4b.detect.start", n_pages=len(script.pages))
     breaks: set[int] = set()
     for ps in script.pages:
         for panel in ps.panels:
             for b in panel.bubbles:
                 if b.type is BubbleType.NARRATION and CHAPTER_RE.match(b.text):
                     breaks.add(ps.page)
+    log.info("m4b.detect.done", n_breaks=len(breaks))
     return breaks
 
 
@@ -54,6 +58,12 @@ def export_m4b_with_chapters(
     Implementation note: ffmpeg requires a chapters metadata file. Build it
     on the fly and pipe to -i.
     """
+    log.info(
+        "m4b.export.start",
+        mp3=str(mp3_path),
+        out=str(out_path),
+        n_chapters=len(chapters),
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_lines = [";FFMETADATA1"]
     for i, (offset_ms, title) in enumerate(chapters):
@@ -88,6 +98,11 @@ def export_m4b_with_chapters(
             check=True,
             capture_output=True,
         )
-        log.info("m4b.export.done", path=str(out_path))
+        log.info(
+            "m4b.export.done",
+            path=str(out_path),
+            n_chapters=len(chapters),
+            size_bytes=out_path.stat().st_size,
+        )
     finally:
         metadata_file.unlink(missing_ok=True)
