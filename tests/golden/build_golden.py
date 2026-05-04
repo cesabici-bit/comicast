@@ -1,6 +1,12 @@
 """One-shot — generate the golden script for the synthetic CBZ.
 
 Run once. Re-run only when changing prompts (and bumping prompt version) — review diff.
+
+Pinned to: schemas.py contract as of F3-T13 (commit d8ad394).
+If schemas.py adds a non-default field, re-run + carefully review the diff +
+bump the prompt version in src/comicast/vision/prompts.py if the change is
+semantic. The byte-stability of `model_dump_json(indent=2)` for plain types
+is locked by `tests/golden/test_vision_golden.py::test_synth_script_round_trip_is_byte_stable`.
 """
 
 from __future__ import annotations
@@ -26,6 +32,11 @@ def main() -> None:
         bubble = Bubble(
             text=f"Page {i} synthetic dialogue.",
             speaker_id="synth_char_a",
+            # NOTE: "neutral" is the schema default but NOT in PER_PAGE_SYSTEM
+            # prompt vocabulary (see VIS-06 in KNOWN_ISSUES.md). Kept here
+            # intentionally so this golden exercises the schema-permissive
+            # surface; will need regeneration if VIS-06 is resolved by
+            # tightening to Literal[...].
             emotion="neutral",
             type=BubbleType.DIALOGUE,
             bbox=(50, 50, 250, 100),
