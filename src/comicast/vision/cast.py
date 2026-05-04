@@ -6,23 +6,16 @@ Single Anthropic vision call over the first ~30 pages, returns a CastFile.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 from comicast.anthropic_client import AnthropicClient
 from comicast.budget import BudgetTracker
 from comicast.logging_setup import get_logger
 from comicast.schemas import CastFile
+from comicast.vision._parse import strip_fences
 from comicast.vision.prompts import CAST_EXTRACTION_SYSTEM, CAST_EXTRACTION_USER
 
 log = get_logger("comicast.vision.cast")
-
-_FENCE_RE = re.compile(r"^```(?:json)?\s*([\s\S]+?)\s*```\s*$", re.MULTILINE)
-
-
-def _strip_fences(text: str) -> str:
-    m = _FENCE_RE.search(text)
-    return m.group(1) if m else text
 
 
 def extract_cast(
@@ -58,7 +51,7 @@ def extract_cast(
             cache_system=True,
         )
         try:
-            data = json.loads(_strip_fences(raw))
+            data = json.loads(strip_fences(raw))
         except json.JSONDecodeError as e:
             parse_failures += 1
             log.warning("vision.cast.parse_fail", page=str(p), error=str(e))

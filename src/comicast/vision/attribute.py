@@ -7,7 +7,6 @@ parse the JSON response into PageScript objects, accumulate into ScriptFile.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -16,17 +15,11 @@ from comicast.anthropic_client import AnthropicClient
 from comicast.budget import BudgetTracker
 from comicast.logging_setup import get_logger
 from comicast.schemas import CastFile, PageScript, ScriptFile
+from comicast.vision._parse import strip_fences
 from comicast.vision.prompts import PER_PAGE_SYSTEM, PER_PAGE_USER
 from comicast.vision.thresholds import HITL_CONFIDENCE_THRESHOLD
 
 log = get_logger("comicast.vision.attribute")
-
-_FENCE_RE = re.compile(r"^```(?:json)?\s*([\s\S]+?)\s*```\s*$", re.MULTILINE)
-
-
-def _strip_fences(text: str) -> str:
-    m = _FENCE_RE.search(text)
-    return m.group(1) if m else text
 
 
 def attribute_pages(
@@ -65,7 +58,7 @@ def attribute_pages(
                 ),
                 cache_system=True,
             )
-            data = json.loads(_strip_fences(raw))
+            data = json.loads(strip_fences(raw))
             page_script = PageScript.model_validate(data)
             page_scripts.append(page_script)
             log.info("vision.attribute.page_done", page=idx, n_panels=len(page_script.panels))
