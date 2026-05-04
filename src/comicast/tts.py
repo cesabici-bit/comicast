@@ -36,6 +36,13 @@ def generate_audio(
     (elevenlabs_client.py:88 — budget.assert_under_hard_limit() called after
     each cost record). T17 lesson cross-applied; no per-loop guard needed here.
     See KNOWN_ISSUES BG-01 for rationale on raise-not-assert semantics.
+
+    NOTE on concurrency burst-overshoot (KNOWN_ISSUES TTS-02): the assert fires
+    AFTER record() and AFTER the API call returns, so under max_concurrent=N up
+    to N over-budget calls may already be in flight (and billed by ElevenLabs)
+    before the guard trips. Effective hard-fail granularity is therefore
+    `2× estimate + N × max_call_cost`, not `2× + 1`. Acceptable in steady state;
+    revisit at T39 (BudgetGuard wrapper) if tighter granularity is required.
     """
     tasks: list[tuple[int, int, int, DirectedBubble]] = []
     for page in script.pages:
@@ -61,8 +68,9 @@ def generate_audio(
         )
 
     with ThreadPoolExecutor(max_workers=max_concurrent) as ex:
-        results_unordered = list(ex.map(_synth, tasks))
+        # ThreadPoolExecutor.map preserves input order, so the result is
+        # already in reading order despite the parallel dispatch.
+        clips_in_order = list(ex.map(_synth, tasks))
 
-    # ThreadPoolExecutor.map preserves input order.
-    log.info("tts.done", n_clips=len(results_unordered))
-    return results_unordered
+    log.info("tts.done", n_clips=len(clips_in_order))
+    return clips_in_order
