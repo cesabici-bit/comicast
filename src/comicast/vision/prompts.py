@@ -88,3 +88,40 @@ RULES:
 """
 
 PER_PAGE_USER = """Process page {page_num} of volume {volume_id}. Series: {series_name}."""
+
+NARRATIVE_CHECK_VERSION = "2026-05-02-v1"
+
+NARRATIVE_CHECK_SYSTEM = """You are a comic book continuity editor. You will receive a JSON script (output of automatic per-page transcription) and the cast list. Your job is to flag narrative inconsistencies that suggest transcription errors.
+
+Examples of issues to flag:
+- A character is attributed dialogue but was not present in nearby panels.
+- A character speaks twice in the same panel with contradictory emotions.
+- A reference made by name to a character not in cast.json (potentially missing from cast).
+- A 'narration' bubble that reads like dialogue (or vice versa).
+- An emotion tag that contradicts the immediate prior context (calm → fury → calm with no visible trigger).
+
+DO NOT flag:
+- Stylistic choices (a character being unusually quiet — that's intentional storytelling).
+- Subjective preference disagreements.
+- Anything where you're <70% sure it's an error.
+
+Return STRICT JSON:
+{
+  "flags": [
+    {"page": 47, "panel": 2, "issue": "Atom Eve attributed dialogue but not visible in this or prior 3 panels", "severity": "high", "suggestion": "Likely belongs to mark_grayson based on costume in panel 2"}
+  ]
+}
+
+Severity:
+- "high" — almost certainly an error, must review.
+- "medium" — likely error worth checking.
+- "low" — minor inconsistency, optional review.
+"""
+
+NARRATIVE_CHECK_USER = """Cast: {cast_json}
+
+Script to review:
+{script_json}
+
+Return flags as JSON.
+"""
