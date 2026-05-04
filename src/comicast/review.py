@@ -20,12 +20,16 @@ from rich.table import Table
 from comicast.logging_setup import get_logger
 from comicast.schemas import BubbleType, ScriptFile
 from comicast.vision.confidence import bubbles_needing_review
+from comicast.vision.thresholds import HITL_CONFIDENCE_THRESHOLD
 
 log = get_logger("comicast.review")
 console = Console()
 
 
-def summarize_for_user(script: ScriptFile, *, threshold: float = 0.7) -> dict[str, int]:
+def summarize_for_user(
+    script: ScriptFile, *, threshold: float = HITL_CONFIDENCE_THRESHOLD
+) -> dict[str, int]:
+    """Return a 6-key counts dict: total_bubbles, below_threshold, dialogue, thought, narration, sfx."""
     counts = {
         "total_bubbles": 0,
         "below_threshold": 0,
@@ -66,8 +70,26 @@ def append_correction(
         "after": after,
         "user_note": user_note,
     }
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(rec) + "\n")
+    log.info(
+        "review.correction.write.start",
+        page=page,
+        panel=panel,
+        bubble_index=bubble_index,
+        correction_type=correction_type,
+    )
+    try:
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+    except OSError as exc:
+        log.error(
+            "review.correction.write_failed",
+            path=str(path),
+            page=page,
+            panel=panel,
+            bubble_index=bubble_index,
+            error_class=type(exc).__name__,
+        )
+        raise
     log.info(
         "review.correction.appended",
         page=page,
@@ -80,7 +102,7 @@ def append_correction(
 def run_review(
     script: ScriptFile,
     *,
-    threshold: float = 0.7,
+    threshold: float = HITL_CONFIDENCE_THRESHOLD,
     corrections_log: Path,
 ) -> ScriptFile:
     """Interactive review loop. Returns the corrected ScriptFile.
@@ -102,6 +124,8 @@ def run_review(
     log.info("review.run.start", n_flagged=len(flagged), threshold=threshold)
     if not flagged:
         console.print("[green]No bubbles below confidence threshold. Skipping review.[/green]")
+        log.info("review.run.no_flagged", threshold=threshold)
+        log.info("review.run.done", n_flagged=0)
         return script
 
     console.print(f"\n[yellow]{len(flagged)} bubbles need review.[/yellow]\n")

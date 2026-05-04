@@ -37,3 +37,15 @@ def test_bubbles_needing_review_default_is_shared_constant() -> None:
     sig = inspect.signature(confidence.bubbles_needing_review)
     default = sig.parameters["threshold"].default
     assert default == HITL_CONFIDENCE_THRESHOLD
+
+
+def test_review_defaults_are_shared_constant() -> None:
+    """``summarize_for_user`` and ``run_review`` must default to the shared
+    constant — never a re-hardcoded literal that could drift independently.
+    Closes T36 IMP-1 finding (HITL threshold drift surface)."""
+    from comicast import review
+
+    sig_sum = inspect.signature(review.summarize_for_user)
+    sig_run = inspect.signature(review.run_review)
+    assert sig_sum.parameters["threshold"].default == HITL_CONFIDENCE_THRESHOLD
+    assert sig_run.parameters["threshold"].default == HITL_CONFIDENCE_THRESHOLD
