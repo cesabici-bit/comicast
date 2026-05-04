@@ -12,6 +12,7 @@ log = get_logger("comicast.profile")
 
 
 def load_profile(path: Path, *, series_name: str) -> SeriesProfile:
+    """Read SeriesProfile from JSON at `path`, or create an empty one if missing."""
     log.info("profile.load.start", path=str(path), series_name=series_name)
     if not path.exists():
         log.warning("profile.load.missing", path=str(path), series_name=series_name)
@@ -23,6 +24,7 @@ def load_profile(path: Path, *, series_name: str) -> SeriesProfile:
 
 
 def save_profile(profile: SeriesProfile, path: Path) -> None:
+    """Write `profile` to `path` as indented JSON (UTF-8); creates parent dirs."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(profile.model_dump_json(indent=2), encoding="utf-8")
     log.info("profile.saved", path=str(path), version=profile.version, n_cast=len(profile.cast))
@@ -51,7 +53,7 @@ def upsert_cast_from_extraction(profile: SeriesProfile, cast_file: CastFile) -> 
             existing.canonical_name = entry.canonical_name
             existing.aliases = list(set(existing.aliases) | set(entry.aliases))
             existing.description = entry.description
-            # PRESERVE voice_id, archetype, counts
+            # PRESERVE voice_id, voice_archetype, user_confirmations, user_corrections
             n_updated += 1
         else:
             by_id[entry.id] = entry
