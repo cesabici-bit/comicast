@@ -7,12 +7,38 @@ from dataclasses import dataclass
 from typing import Any
 
 from elevenlabs import ElevenLabs
-from tenacity import retry, stop_after_attempt, wait_exponential
+from elevenlabs.core import ApiError
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from comicast.budget import BudgetTracker
 from comicast.logging_setup import get_logger
 
 log = get_logger("comicast.elevenlabs")
+
+
+def _is_transient_elevenlabs(exc: BaseException) -> bool:
+    """Predicate for tenacity retry: True only on transient ElevenLabs/network errors.
+
+    The ElevenLabs Python SDK 2.x has no typed RateLimitError or 5xx subclass:
+    422 raises elevenlabs.UnprocessableEntityError (subclass of ApiError),
+    everything else (429, 5xx) raises bare elevenlabs.core.ApiError(status_code=N).
+    Retry only on 429 (rate-limit) and 5xx (server error). 422 and other 4xx
+    (auth/permission/validation) must fail-fast — they will not succeed on retry
+    and burn cost+latency. BudgetExceededError (RuntimeError subclass) also
+    fails-fast: the hard-limit circuit-breaker must NOT become a 3× cost multiplier.
+    Network errors (httpx ConnectError, TimeoutException) are transient → retry.
+    """
+    if isinstance(exc, ApiError):
+        code = exc.status_code
+        if code is None:
+            return True  # unknown status — treat as transient
+        return code == 429 or code >= 500
+    try:
+        import httpx
+
+        return isinstance(exc, httpx.ConnectError | httpx.TimeoutException)
+    except ImportError:
+        return False
 
 
 @dataclass
@@ -35,7 +61,12 @@ class ElevenLabsClient:
         self._client = ElevenLabs(api_key=key)
         self.budget = budget
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10), reraise=True)
+    @retry(
+        retry=retry_if_exception(_is_transient_elevenlabs),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(min=1, max=10),
+        reraise=True,
+    )
     def synthesize(
         self,
         *,
@@ -70,6 +101,10 @@ class ElevenLabsClient:
         result = self._client.voices.search(search=query, page_size=limit)
         candidates: list[VoiceCandidate] = []
         for v in getattr(result, "voices", []):
+            # NOTE (T19 follow-up): when migrating to voices.get_shared(), change
+            # extraction to getattr(v, "descriptive", "") — the /v1/shared-voices
+            # field is "descriptive" (singular), NOT "description". See
+            # F1-elevenlabs.md:245 and KNOWN_ISSUES.md AUD-04.
             candidates.append(
                 VoiceCandidate(
                     voice_id=v.voice_id,
@@ -77,4 +112,6 @@ class ElevenLabsClient:
                     description=getattr(v, "description", "") or "",
                 )
             )
+        if not candidates:
+            log.warning("elevenlabs.search_voices.no_candidates", query=query, limit=limit)
         return candidates
