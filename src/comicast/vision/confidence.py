@@ -1,4 +1,9 @@
-"""Confidence helpers for HITL escalation."""
+"""Confidence helpers for HITL escalation.
+
+Default threshold and the calibration band declared in
+``vision.prompts.PER_PAGE_SYSTEM`` share a single source of truth at
+``vision.thresholds.HITL_CONFIDENCE_THRESHOLD`` (closes VIS-07).
+"""
 
 from __future__ import annotations
 
@@ -6,6 +11,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from comicast.schemas import Bubble, PageScript, ScriptFile
+from comicast.vision.thresholds import HITL_CONFIDENCE_THRESHOLD
 
 
 @dataclass
@@ -16,7 +22,7 @@ class FlaggedBubble:
 
 
 def bubbles_needing_review(
-    script: ScriptFile, *, threshold: float = 0.7
+    script: ScriptFile, *, threshold: float = HITL_CONFIDENCE_THRESHOLD
 ) -> Iterator[FlaggedBubble]:
     """Yield every bubble with confidence < threshold."""
     for ps in script.pages:

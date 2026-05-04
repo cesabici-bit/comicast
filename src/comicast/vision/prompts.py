@@ -82,7 +82,7 @@ RULES:
 - 'sfx' bubbles use speaker_id = '__sfx__'. Examples: KRRAAANG!, BOOM!, SPLAT!.
 - 'narration' bubbles (rectangular caption boxes, not speech balloons) use speaker_id = '__narrator__'.
 - 'thought' bubbles (cloud-edge balloons) use the character's id but type='thought'.
-- Confidence: 0.9+ if both speaker AND text are unambiguous; 0.7-0.9 if one is uncertain; <0.7 if you're really not sure (this triggers HITL review).
+- Confidence: 0.9+ if both speaker AND text are unambiguous; 0.7-0.9 if one is uncertain; <{hitl_threshold} if you're really not sure (this triggers HITL review).
 - DO NOT invent dialogue not visible on the page.
 - DO NOT attribute a bubble to a character not present in the panel unless the bubble's tail clearly points off-panel.
 """

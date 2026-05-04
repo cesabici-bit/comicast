@@ -17,6 +17,7 @@ from comicast.budget import BudgetTracker
 from comicast.logging_setup import get_logger
 from comicast.schemas import CastFile, PageScript, ScriptFile
 from comicast.vision.prompts import PER_PAGE_SYSTEM, PER_PAGE_USER
+from comicast.vision.thresholds import HITL_CONFIDENCE_THRESHOLD
 
 log = get_logger("comicast.vision.attribute")
 
@@ -46,6 +47,7 @@ def attribute_pages(
     system_prompt = PER_PAGE_SYSTEM.format(
         cast_json=cast_json_str,
         common_errors=common_errors_str,
+        hitl_threshold=HITL_CONFIDENCE_THRESHOLD,
     )
 
     page_scripts: list[PageScript] = []
