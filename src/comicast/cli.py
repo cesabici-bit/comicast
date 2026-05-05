@@ -129,6 +129,17 @@ def process(
     save_profile(profile, profile_path)
     _assert_cardinalities("vision_cast", n_cast=len(cast.cast))
 
+    # D-FIX-1 (T40-01 / IMP-1): fail-fast under --skip-review on a profile with
+    # no voice_id assignments. Without this guard, build_directed_script raises
+    # RuntimeError deep in stage 3 (director.py:128-132) when voice_by_id is empty,
+    # giving the operator a cryptic error. Surface the missing prerequisite here.
+    if skip_review and not any(c.voice_id for c in profile.cast):
+        raise RuntimeError(
+            f"Profile '{profile.series_name}' has 0/{len(profile.cast)} cast members "
+            "with voice_id assigned. --skip-review requires pre-populated voice_ids; "
+            "rerun without --skip-review to assign voices interactively."
+        )
+
     # Voice assignment (HITL — if any cast member missing voice_id)
     if not skip_review:
         profile = assign_voices_interactive(profile, el_client=el)

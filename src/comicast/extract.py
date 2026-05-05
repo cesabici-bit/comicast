@@ -60,8 +60,10 @@ def extract_pages(
         stale = list(out_dir.glob("page_*.png"))
         for stale_path in stale:
             stale_path.unlink()
-        if stale:
-            log.info("extract.force_clean", n_removed=len(stale), out_dir=str(out_dir))
+        # D-FIX-2 (T40-02 / IMP-2): always-on log under force=True. Sibling parity
+        # with extract.skip / extract.done — operator can confirm `--force` was
+        # respected even when N==0 (no stale to remove).
+        log.info("extract.force_clean", n_removed=len(stale), out_dir=str(out_dir))
 
     existing = sorted(out_dir.glob("page_*.png"))
     if existing and not force:

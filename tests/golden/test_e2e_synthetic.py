@@ -91,8 +91,13 @@ def _make_audio_segment_mock() -> MagicMock:
 def _build_mocks(
     MockAnth: MagicMock,  # noqa: N803
     MockEL: MagicMock,  # noqa: N803
-) -> tuple[str, str, str, str]:
-    """Set up shared mock responses.  Returns (cast_response, page_response, narr_response, learn_response).
+) -> tuple[str, str]:
+    """Set up shared mock responses.  Returns (cast_response, page_response).
+
+    D-FIX-4 (MIN-3): narrative/learn responses removed from return signature —
+    all 4 scenarios pass --skip-narrative-check, and learn graceful-degrades when
+    corrections.jsonl is absent. Re-add narr/learn to return when T40-04 lands a
+    narrative-coverage scenario.
 
     Cycle NOT set here — each scenario has its own cycle because cycle is consumed
     destructively (list.pop(0)) and each scenario invokes runner.invoke independently.
@@ -130,8 +135,6 @@ def _build_mocks(
             ],
         }
     )
-    narr_response = json.dumps({"flags": []})
-    learn_response = json.dumps({"common_errors_learned": []})
 
     # ElevenLabs mock: every synthesize returns SILENCE_MP3; voice search returns 1 voice
     MockEL.return_value.text_to_speech.convert.return_value = iter([SILENCE_MP3])
@@ -141,7 +144,7 @@ def _build_mocks(
         ]
     )
 
-    return cast_response, page_response, narr_response, learn_response
+    return cast_response, page_response
 
 
 def _make_create_fn(cycle: list[str]) -> MagicMock:
@@ -183,8 +186,11 @@ def test_e2e_cold_path_skip_review(
     Profile pre-seeded with voice_id="EL_test" (see D-EXT-3b deviation note).
     Cycle: 3 cast calls + 3 attribute calls = 6 total (see D-EXT-3a deviation note).
     AudioSegment mocked to avoid ffmpeg (see D-EXT-3c deviation note).
+
+    Locks: 5 cardinality invariants (D-EXT-2), 4 intermediate artifacts on disk,
+    profile round-trip post-run (version==1 / volumes_processed=='v1' / 1 cast entry).
     """
-    cast_response, page_response, _narr, _learn = _build_mocks(MockAnth, MockEL)
+    cast_response, page_response = _build_mocks(MockAnth, MockEL)
     audio_mock = _make_audio_segment_mock()
     MockAudioSeg.from_file = audio_mock.from_file
     MockAudioSeg.silent = audio_mock.silent
@@ -269,7 +275,7 @@ def test_e2e_warm_path_resume(
 
     TTS runs unconditionally (no skip branch in current cli.py) so MockEL stays valid.
     """
-    cast_response, page_response, _narr, _learn = _build_mocks(MockAnth, MockEL)
+    cast_response, page_response = _build_mocks(MockAnth, MockEL)
     audio_mock = _make_audio_segment_mock()
     MockAudioSeg.from_file = audio_mock.from_file
     MockAudioSeg.silent = audio_mock.silent
@@ -313,6 +319,11 @@ def test_e2e_warm_path_resume(
         )
     assert cold_result.exit_code == 0, cold_result.stdout
 
+    # CONCERN-2 lock: cold run must invoke Anthropic exactly 6 times (3 cast + 3 attr).
+    # Locks the cycle structure so a future plumbing change that drops/adds a stage
+    # call produces a loud test failure instead of silent cycle exhaustion.
+    assert MockAnth.return_value.messages.create.call_count == 6
+
     # --- Warm run: Anthropic must NOT be called ---
     MockAnth.return_value.messages.create.side_effect = AssertionError(
         "warm-path must not call Anthropic"
@@ -354,7 +365,7 @@ def test_e2e_force_pre_clean_fewer_pages(
     After the cold run, two extra stale PNG files are injected into the pages dir.
     Re-invoking with --force must produce EXACTLY 3 page_*.png (stale files gone).
     """
-    cast_response, page_response, _narr, _learn = _build_mocks(MockAnth, MockEL)
+    cast_response, page_response = _build_mocks(MockAnth, MockEL)
     audio_mock = _make_audio_segment_mock()
     MockAudioSeg.from_file = audio_mock.from_file
     MockAudioSeg.silent = audio_mock.silent
@@ -464,7 +475,7 @@ def test_e2e_interactive_review_path(
     Cycle: 3 cast + 3 attr = 6 calls; no narrative (--skip-narrative-check);
     no learn (no corrections.jsonl — run_review short-circuits on empty flagged).
     """
-    cast_response, page_response, _narr, _learn = _build_mocks(MockAnth, MockEL)
+    cast_response, page_response = _build_mocks(MockAnth, MockEL)
 
     audio_mock = _make_audio_segment_mock()
     MockAudioSeg.from_file = audio_mock.from_file
@@ -517,3 +528,73 @@ def test_e2e_interactive_review_path(
 
     mp3 = tmp_path / "work" / "v1" / "output.mp3"
     assert mp3.exists()
+
+
+# ---------------------------------------------------------------------------
+# Scenario (e) — fail-fast on --skip-review with no voice_id (D-FIX-1 / IMP-1 lock)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.golden
+@patch("comicast.stitch.AudioSegment")
+@patch("comicast.elevenlabs_client.ElevenLabs")
+@patch("comicast.anthropic_client.anthropic.Anthropic")
+def test_e2e_skip_review_fresh_profile_fails_fast(
+    MockAnth: MagicMock,  # noqa: N803
+    MockEL: MagicMock,  # noqa: N803
+    MockAudioSeg: MagicMock,  # noqa: N803
+    tmp_path: Path,
+) -> None:
+    """SMOKE (e): --skip-review on a profile with no voice_id must fail-fast at stage 2.
+
+    D-FIX-1 (T40-01 / IMP-1): the CLI guard at cli.py post-vision_cast cardinality
+    raises a descriptive RuntimeError when skip_review is True and no cast member
+    has voice_id assigned. Without this guard, the pipeline crashes deep in stage 3
+    (build_directed_script, voice_by_id empty → total_out==0). This scenario locks
+    the early-fail behavior and verifies the error message is actionable.
+
+    Profile NOT pre-seeded — extract_cast populates 1 cast entry without voice_id.
+    """
+    cast_response, page_response = _build_mocks(MockAnth, MockEL)
+
+    audio_mock = _make_audio_segment_mock()
+    MockAudioSeg.from_file = audio_mock.from_file
+    MockAudioSeg.silent = audio_mock.silent
+
+    cycle: list[str] = [cast_response] * 3 + [page_response] * 3
+    MockAnth.return_value.messages.create.side_effect = _make_create_fn(cycle)
+
+    profile_dir = tmp_path / "profiles"
+    # Profile NOT pre-seeded — guard must fire after upsert populates cast.
+
+    runner = CliRunner()
+    result = runner.invoke(
+        __import__("comicast.cli", fromlist=["app"]).app,
+        [
+            "process",
+            str(FIXTURE),
+            "--series",
+            "Synth",
+            "--volume",
+            "v1",
+            "--work-dir",
+            str(tmp_path / "work"),
+            "--profile-dir",
+            str(profile_dir),
+            "--budget",
+            "5.0",
+            "--skip-review",
+            "--skip-narrative-check",
+        ],
+        catch_exceptions=True,
+        env={"ANTHROPIC_API_KEY": "sk-test", "ELEVENLABS_API_KEY": "el-test"},
+    )
+
+    # CLI exits non-zero with a RuntimeError surfacing the missing prerequisite.
+    assert result.exit_code != 0
+    assert isinstance(result.exception, RuntimeError)
+    msg = str(result.exception)
+    assert "voice_id" in msg
+    assert "--skip-review" in msg
+    # Stage-3 (director) must NOT have been reached — script_with_voices.json absent.
+    assert not (tmp_path / "work" / "v1" / "script_with_voices.json").exists()
