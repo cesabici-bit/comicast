@@ -1,4 +1,7 @@
-"""Self-improving — summarize past corrections into prompt-injectable common errors."""
+"""Self-improving — summarize past corrections into prompt-injectable common errors.
+
+Public function: ``update_common_errors_from_log()``.
+"""
 
 from __future__ import annotations
 
@@ -39,14 +42,22 @@ def update_common_errors_from_log(
     client: AnthropicClient,
     budget: BudgetTracker,
 ) -> SeriesProfile:
-    """Read corrections.jsonl, summarize via Claude, update profile in-place."""
+    """Read corrections.jsonl, summarize via Claude, update profile in-place.
+
+    Replaces ``profile.common_errors_learned`` with the newly-summarized list
+    (no merge with prior contents — call once per profile update cycle).
+
+    The ``budget`` parameter is accepted for symmetry with sibling pipeline
+    functions; hard-limit enforcement happens transitively inside
+    ``client.call_text`` via ``client.budget.assert_under_hard_limit()``.
+    """
     if not corrections_log.exists() or corrections_log.stat().st_size == 0:
         log.info("learn.no_corrections", path=str(corrections_log))
         return profile
 
     try:
         raw_text = corrections_log.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         log.error(
             "learn.read_failed",
             path=str(corrections_log),
