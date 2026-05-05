@@ -49,6 +49,21 @@ console = Console()
 log = get_logger("comicast.cli")
 
 
+def _assert_cardinalities(stage: str, **invariants: int) -> None:
+    """Guard: raise RuntimeError if any invariant value is <= 0.
+
+    D-EXT-2 (CLI-03): cardinality helper for 5 pipeline stages.
+    Uses RuntimeError (NOT assert keyword — assert is stripped under python -O,
+    see KNOWN_ISSUES BG-01 lesson). Equality invariants are checked by the caller
+    before calling this helper; this helper is the >0 guard.
+    """
+    failed = {k: v for k, v in invariants.items() if v <= 0}
+    if failed:
+        log.error("cli.cardinality.failed", stage=stage, **invariants)
+        raise RuntimeError(f"Cardinality invariant violated at stage {stage}: {invariants}")
+    log.info("cli.cardinality.ok", stage=stage, **invariants)
+
+
 def _version_callback(value: bool) -> None:
     if value:
         typer.echo(pkg_version("comicast"))
@@ -95,6 +110,7 @@ def process(
     # Stage 1
     pages_dir = volume_dir / "pages"
     pages = extract_pages(input_path, pages_dir, force=force)
+    _assert_cardinalities("extract", n_pages=len(pages))
 
     # Profile
     profile_path = profile_dir / f"{series.lower().replace(' ', '_')}.json"
@@ -111,6 +127,7 @@ def process(
         cast_path.write_text(cast.model_dump_json(indent=2))
     profile = upsert_cast_from_extraction(profile, cast)
     save_profile(profile, profile_path)
+    _assert_cardinalities("vision_cast", n_cast=len(cast.cast))
 
     # Voice assignment (HITL — if any cast member missing voice_id)
     if not skip_review:
@@ -132,6 +149,11 @@ def process(
             budget=budget,
         )
         script_path.write_text(script.model_dump_json(indent=2))
+    if len(script.pages) != len(pages):
+        raise RuntimeError(
+            f"attribution produced {len(script.pages)} script pages, expected {len(pages)}"
+        )
+    _assert_cardinalities("attribute", n_script_pages=len(script.pages))
 
     # Stage 2c — Narrative consistency
     # `flags.json` is a write-only artifact for F4 dashboards; not consumed
@@ -161,9 +183,15 @@ def process(
     # Stage 3 — Voice direction
     directed = build_directed_script(script, profile=profile)
     (volume_dir / "script_with_voices.json").write_text(directed.model_dump_json(indent=2))
+    if len(directed.pages) != len(script.pages):
+        raise RuntimeError(
+            f"direction produced {len(directed.pages)} pages, expected {len(script.pages)}"
+        )
+    _assert_cardinalities("direction", n_directed_pages=len(directed.pages))
 
     # Stage 4 — TTS + Stitching
     clips = generate_audio(directed, client=el, budget=budget, max_concurrent=8)
+    _assert_cardinalities("tts", n_clips=len(clips))
     scene_breaks = detect_scene_breaks(script)
     final = stitch_clips(clips, scene_breaks_at_pages=scene_breaks)
     mp3_path = volume_dir / "output.mp3"

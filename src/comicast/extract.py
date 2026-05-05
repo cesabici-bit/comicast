@@ -53,6 +53,16 @@ def extract_pages(
     if fmt == "cbr":
         return _extract_cbr(source, out_dir)
 
+    # D-EXT-1 (CLI-01): force pre-clean removes stale page_*.png before re-extract.
+    # Uses glob+unlink (NOT shutil.rmtree) to preserve unrelated files in out_dir.
+    # Placed AFTER the cbr fail-fast branch so CBR never reaches this code.
+    if force:
+        stale = list(out_dir.glob("page_*.png"))
+        for stale_path in stale:
+            stale_path.unlink()
+        if stale:
+            log.info("extract.force_clean", n_removed=len(stale), out_dir=str(out_dir))
+
     existing = sorted(out_dir.glob("page_*.png"))
     if existing and not force:
         log.info(
