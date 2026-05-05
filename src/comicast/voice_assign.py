@@ -4,7 +4,9 @@ Two paths:
 1. LLM-driven: build a search query from the description, get candidates, user picks.
 2. Direct ID: user pastes an ElevenLabs voice_id they already know.
 
-Phase 1 implements both as CLI prompts. Voice archetype library is also written here.
+Phase 1 implements both as CLI prompts. Voice archetype library entries can be
+appended during assignment (no removal/edit; conflict-on-overwrite is silent —
+see VOICE-04 backlog).
 """
 
 from __future__ import annotations
@@ -27,6 +29,9 @@ def cast_members_needing_voice(profile: SeriesProfile) -> list[CastEntry]:
     return [c for c in profile.cast if not c.voice_id]
 
 
+# Order matters: more-specific labels first; first match wins. Python 3.7+ dict
+# preserves insertion order, so "teen" is tried before "young adult" (both share
+# the keyword "young"); changing this dict's key order changes label selection.
 _AGE_KEYWORDS = {
     "teen": ("teen", "young"),
     "child": ("child",),
@@ -77,6 +82,14 @@ def assign_voices_interactive(
     *,
     el_client: ElevenLabsClient,
 ) -> SeriesProfile:
+    """Walk cast members without a `voice_id` and prompt the user to assign one.
+
+    For each member: try archetype library → search ElevenLabs → manual paste.
+    Mutates `profile.cast[i].voice_id`/`voice_archetype` in place AND returns the
+    same `profile` (dual side-effect — sibling `upsert_cast_from_extraction`,
+    PROF-02 / VOICE-03 backlog). Caller is responsible for `save_profile` and
+    `profile.version` bump (PROF-04).
+    """
     needing = cast_members_needing_voice(profile)
     log.info(
         "voice_assign.start",
@@ -165,6 +178,10 @@ def assign_voices_interactive(
             default="",
         )
         if archetype:
+            # Invariant: c.voice_id is set by every reachable path leading here
+            # (search-pick / search-paste / no-candidates-manual all assigned
+            # before this section; archetype-hit branch `continue`s above).
+            assert c.voice_id is not None, "voice_id must be set before archetype save"
             profile.voice_archetype_library[archetype] = c.voice_id
             c.voice_archetype = archetype
             log.info(
