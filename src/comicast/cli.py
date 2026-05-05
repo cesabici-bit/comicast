@@ -6,6 +6,10 @@ volume without redoing completed stages. Pass `--force` to invalidate all
 intermediate artifacts and re-run from scratch. The HITL review path (`run_review`)
 preserves user corrections via `corrections.jsonl` (T36 writer); a re-invocation
 re-flags un-corrected bubbles without losing prior decisions.
+
+The self-improving step (`update_common_errors_from_log`) graceful-degrades to a
+no-op when `corrections.jsonl` is absent (e.g. `--skip-review` on a fresh volume),
+emitting `learn.no_corrections` and returning the profile unchanged.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ from comicast.tts import generate_audio
 from comicast.vision.attribute import attribute_pages
 from comicast.vision.cast import extract_cast
 from comicast.vision.narrative import check_narrative
+from comicast.vision.thresholds import HITL_CONFIDENCE_THRESHOLD
 from comicast.voice.director import build_directed_script
 from comicast.voice_assign import assign_voices_interactive
 
@@ -129,6 +134,8 @@ def process(
         script_path.write_text(script.model_dump_json(indent=2))
 
     # Stage 2c — Narrative consistency
+    # `flags.json` is a write-only artifact for F4 dashboards; not consumed
+    # downstream in F3 (HITL review reads `script.json`, not `flags.json`).
     flags_path = volume_dir / "flags.json"
     if not skip_narrative_check and (not flags_path.exists() or force):
         flags = check_narrative(script, cast=cast, client=anth, budget=budget)
@@ -137,7 +144,9 @@ def process(
     # HITL Review
     corrections_log = volume_dir / "corrections.jsonl"
     if not skip_review:
-        script = run_review(script, threshold=0.7, corrections_log=corrections_log)
+        script = run_review(
+            script, threshold=HITL_CONFIDENCE_THRESHOLD, corrections_log=corrections_log
+        )
         script_path.write_text(script.model_dump_json(indent=2))
 
     # Self-improving — update common_errors_learned
@@ -155,13 +164,14 @@ def process(
 
     # Stage 4 — TTS + Stitching
     clips = generate_audio(directed, client=el, budget=budget, max_concurrent=8)
-    final = stitch_clips(clips, scene_breaks_at_pages=detect_scene_breaks(script))
+    scene_breaks = detect_scene_breaks(script)
+    final = stitch_clips(clips, scene_breaks_at_pages=scene_breaks)
     mp3_path = volume_dir / "output.mp3"
     export_mp3(final, mp3_path)
 
     # Stage 4 (cont) — M4B with chapters (if scene breaks exist)
-    breaks = detect_scene_breaks(script)
-    if breaks:
+    had_m4b = bool(scene_breaks)
+    if had_m4b:
         # Compute offsets by walking clips with stitched durations
         # (T34 will need the per-clip durations from final segment timestamps)
         chapters: list[tuple[int, str]] = [(0, f"{series} {volume_id}")]
@@ -170,4 +180,11 @@ def process(
         export_m4b_with_chapters(mp3_path, m4b_path, chapters)
 
     budget.flush()
+    log.info(
+        "cli.done",
+        mp3_path=str(mp3_path),
+        cost_usd=round(budget.spent_usd, 4),
+        n_clips=len(clips),
+        had_m4b=had_m4b,
+    )
     console.print(f"\n[green]Done.[/green] MP3: {mp3_path}  Cost: ${budget.spent_usd:.2f}")

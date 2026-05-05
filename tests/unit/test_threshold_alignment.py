@@ -49,3 +49,13 @@ def test_review_defaults_are_shared_constant() -> None:
     sig_run = inspect.signature(review.run_review)
     assert sig_sum.parameters["threshold"].default == HITL_CONFIDENCE_THRESHOLD
     assert sig_run.parameters["threshold"].default == HITL_CONFIDENCE_THRESHOLD
+
+
+def test_cli_process_uses_shared_constant() -> None:
+    """The CLI orchestrator must invoke ``run_review`` with the shared constant,
+    never a re-hardcoded literal at the call site. Closes T39 IMP-1 (CLI-04)."""
+    from comicast import cli
+
+    src = inspect.getsource(cli.process)
+    assert "HITL_CONFIDENCE_THRESHOLD" in src
+    assert "threshold=0.7" not in src
