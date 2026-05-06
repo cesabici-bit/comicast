@@ -2,7 +2,12 @@
 
 **AI audiobook generator for digital comics — per-character voices, HITL pipeline, cross-volume series memory.**
 
-![status](https://img.shields.io/badge/status-alpha-orange) ![python](https://img.shields.io/badge/python-3.12%2B-blue) ![license](https://img.shields.io/badge/license-MIT-green)
+[![CI](https://github.com/cesabici-bit/comicast/actions/workflows/ci.yml/badge.svg)](https://github.com/cesabici-bit/comicast/actions/workflows/ci.yml)
+![status](https://img.shields.io/badge/status-alpha-orange)
+![python](https://img.shields.io/badge/python-3.12%2B-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
+[![Code of Conduct](https://img.shields.io/badge/Code%20of%20Conduct-Contributor%20Covenant-blueviolet)](CODE_OF_CONDUCT.md)
 
 > ⚠️ **Alpha.** Phase 1 (cloud TTS via ElevenLabs library voices) is end-to-end working and validated on a 25-page real-input dry run. Audio quality is **broadcaster-grade, not actor-grade** — see the [Roadmap](#roadmap) for the 3-tier path to actor-grade output.
 
@@ -169,6 +174,18 @@ make install         # set up venv + dev deps
 make check-all       # ruff + mypy + pytest + verified-deps check
 make smoke           # E2E mocked smoke test (no API keys)
 ```
+
+## Contributing
+
+Contributions are very welcome — Comicast is alpha and there's plenty to do. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, testing conventions, and PR process. Participation is governed by the project's [Code of Conduct](CODE_OF_CONDUCT.md).
+
+For larger ideas (architecture changes, new pipeline stages, Phase 2 / 3 design), please open a [Discussion](https://github.com/cesabici-bit/comicast/discussions) before code.
+
+For security-sensitive findings, please use a [private Security Advisory](https://github.com/cesabici-bit/comicast/security/advisories/new) — see [`SECURITY.md`](SECURITY.md).
+
+## Citing
+
+If you reference Comicast in academic or industry work, see [`CITATION.cff`](CITATION.cff) — GitHub renders a "Cite this repository" button on the project page.
 
 ## Acknowledgments
 

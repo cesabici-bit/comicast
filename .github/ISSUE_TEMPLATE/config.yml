@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions (Q&A, ideas, broader proposals)
+    url: https://github.com/cesabici-bit/comicast/discussions
+    about: For questions, brainstorming, or larger proposals, please open a Discussion instead of an issue.
+  - name: Security vulnerability
+    url: https://github.com/cesabici-bit/comicast/security/advisories/new
+    about: For security-sensitive findings, please use a private Security Advisory — do not file a public issue.

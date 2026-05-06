@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use Comicast in academic or industry work, please cite it as below."
+title: "Comicast: AI audiobook generator for digital comics with per-character voices"
+abstract: >-
+  Comicast is an end-to-end pipeline that converts a digital comic
+  (CBZ / CBR / PDF) into an audiobook with per-character voices.
+  The architecture combines a 3-pass vision-language model attribution
+  stage (cast extraction, per-page bubble attribution, narrative
+  consistency check), a confidence-gated human-in-the-loop review,
+  cross-volume series memory for in-context learning, and a
+  cost-bounded budget guard. To our knowledge it is the first publicly
+  released pipeline that addresses comic-to-audiobook generation with
+  these properties; the closest prior work (arXiv:2509.15253, Sept
+  2025) reports automated attribution accuracy without HITL or release.
+type: software
+authors:
+  - alias: cesabici-bit
+    affiliation: Independent
+repository-code: "https://github.com/cesabici-bit/comicast"
+url: "https://github.com/cesabici-bit/comicast"
+license: MIT
+version: 0.1.0-alpha
+date-released: "2026-05-06"
+keywords:
+  - audiobook
+  - comics
+  - text-to-speech
+  - vision-language-model
+  - human-in-the-loop
+  - speaker-attribution
+  - elevenlabs
+  - claude
+preferred-citation:
+  type: software
+  title: "Comicast: AI audiobook generator for digital comics with per-character voices"
+  authors:
+    - alias: cesabici-bit
+  year: 2026
+  url: "https://github.com/cesabici-bit/comicast"
+  version: 0.1.0-alpha

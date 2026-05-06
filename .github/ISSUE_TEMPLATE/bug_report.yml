@@ -1,0 +1,100 @@
+name: Bug report
+description: Something doesn't work the way it should
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report! Please fill in as much as you can — the more concrete the reproducer, the faster we can fix it.
+
+        For security-sensitive issues, please **do not** file a public bug — see [SECURITY.md](https://github.com/cesabici-bit/comicast/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line description of the problem.
+      placeholder: "extract.py crashes when input PDF has more than 100 pages"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Steps to reproduce
+      description: |
+        How can a maintainer reproduce this? Concrete commands and inputs are gold.
+        If your input is a real comic, please use a synthetic fixture (`tests/fixtures/synth_3pages.cbz`) or describe the input minimally.
+      placeholder: |
+        1. `git clone ...`
+        2. `make install`
+        3. `comicast process tests/fixtures/synth_3pages.cbz --series demo`
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      placeholder: "All 25 pages are extracted to data/work/<series>/pages/"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the full error message and traceback if there is one.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: comicast-version
+    attributes:
+      label: Comicast version
+      description: "`pip show comicast | head -2`"
+      placeholder: "0.1.0-alpha"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.12.7"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux (Ubuntu / Debian)
+        - Linux (other)
+        - macOS
+        - Windows
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional but very helpful)
+      description: |
+        Run with `COMICAST_LOG_LEVEL=DEBUG` to enable verbose structlog output and paste relevant lines here.
+        Please redact any API keys.
+      render: shell
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have checked existing issues and confirmed this is not a duplicate.
+          required: true
+        - label: I have redacted any API keys, personal data, or copyrighted comic content from the report.
+          required: true

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ruff + mypy + pytest + verified-deps
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install OS dependencies (poppler for pdf2image)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+
+      - name: Create venv and install package + dev deps
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+
+      - name: Lint (ruff check)
+        run: .venv/bin/ruff check src tests
+
+      - name: Format check (ruff format)
+        run: .venv/bin/ruff format --check src tests
+
+      - name: Types (mypy strict on src)
+        run: .venv/bin/mypy src
+
+      - name: Tests (pytest, fast tier)
+        run: .venv/bin/pytest -m "not slow" -v --tb=short
+
+      - name: Verified deps consistency
+        run: .venv/bin/python -m comicast.tools.verify_deps

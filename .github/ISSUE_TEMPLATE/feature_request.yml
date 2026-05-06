@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest a new feature or improvement
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a feature! For larger architectural ideas, please open a [GitHub Discussion](https://github.com/cesabici-bit/comicast/discussions) first instead — that's a better place to shape a proposal before code lands.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user-visible behaviour is missing or wrong today? Who is blocked, how often, and how hard is the workaround?
+      placeholder: |
+        When a panel contains a sound effect (e.g. "BOOM!") with no nearby character,
+        Comicast currently attributes it to the previous speaker, which sounds wrong
+        in the audiobook.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution (optional)
+      description: How would you like it to work? Skip if you have only the problem and want to discuss approaches.
+      placeholder: |
+        Add a heuristic in vision/attribute.py that classifies bubbles whose text is
+        all-caps + ends with "!" as type="sfx" with speaker_id="__sfx__".
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered (optional)
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which phase does this fit?
+      description: |
+        Comicast is intentionally split into phases (see CHANGELOG.md). Features outside the active phase will likely be deferred.
+      options:
+        - "Phase 1 (current — cloud TTS, library voices, HITL pipeline)"
+        - "Phase 2 (future — voice cloning, personal-use only)"
+        - "Phase 3 (future — live reader / sync UI)"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have checked existing issues and discussions and confirmed this is not a duplicate.
+          required: true
