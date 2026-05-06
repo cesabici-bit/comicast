@@ -34,9 +34,9 @@ def test_synth_script_round_trip_is_byte_stable() -> None:
     raw = GOLDEN.read_text()
     script = ScriptFile.model_validate_json(raw)
     rebuilt = script.model_dump_json(indent=2)
-    assert (
-        rebuilt == raw
-    ), "Golden no longer round-trips — rebuild via build_golden.py and review diff."
+    assert rebuilt == raw, (
+        "Golden no longer round-trips — rebuild via build_golden.py and review diff."
+    )
 
 
 @pytest.mark.golden

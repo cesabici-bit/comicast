@@ -149,6 +149,7 @@ RESOLVED 2026-05-03 (F2 pre-T10): audioop-lts 0.2.2 added below; pydub import ve
 [[dependency]]
 name = "audioop-lts"
 version = "0.2"
+python_min_version = "3.13"
 verified_date = "2026-05-03"
 verified_via = "https://pypi.org/project/audioop-lts/ + https://github.com/AbstractUmbra/audioop"
 methods_used = [
