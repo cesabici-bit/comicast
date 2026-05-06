@@ -27,9 +27,22 @@ def main() -> int:
         return 0
 
     failures: list[str] = []
+    current_py = sys.version_info[:2]
     for dep in deps:
         name = dep["name"]
         expected = dep["version"]
+        # Skip deps that are conditional on a higher Python version than we run.
+        # (e.g. audioop-lts is only installed on Python >= 3.13 — see
+        # pyproject.toml `python_version >= '3.13'` marker.)
+        py_min = dep.get("python_min_version")
+        if py_min:
+            min_parts = tuple(int(x) for x in py_min.split("."))
+            if current_py < min_parts:
+                print(
+                    f"  SKIP {name} (requires Python >={py_min}, "
+                    f"running {current_py[0]}.{current_py[1]})"
+                )
+                continue
         try:
             installed = version(name)
         except PackageNotFoundError:
