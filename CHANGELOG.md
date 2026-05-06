@@ -50,6 +50,6 @@ End-to-end pipeline working and validated on a 25-page real-input dry run (Invin
 - **Resilience patches (in-task):** `tts.py` incremental clip persistence (`clip_NNNN_*.mp3`), `stitch.py` tolerant decode, `cli.py` stage-4 idempotency (skip TTS when clips/ already complete)
 - **Listening test verdict:** pipeline OK (recognition + reading order "quasi ottimo"), recitation broadcaster-grade not actor-grade — see Roadmap for the 3-tier improvement path
 
-## Notes on history before this release
+## Notes on history
 
-This repo's git history is the result of a `git subtree split` from a private development umbrella; commit timestamps and authorship are preserved. Pre-release commits use a session-numbered prefix (`Comicast Sxx`) tracking the development log captured in `STATUS.md`.
+Pre-release commits use a session-numbered prefix (`Comicast Sxx`) and are co-authored by Claude — see git log for the development trail.

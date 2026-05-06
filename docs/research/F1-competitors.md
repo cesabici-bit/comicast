@@ -2,7 +2,7 @@
 
 **Date checked:** 2026-05-03
 **Author:** Comicast F1 research (T08)
-**Purpose:** Verify the market gap claimed in `spec.md §1` — "Tool esistenti … gestiscono libri di testo ma non fumetti" — with real evidence, then apply the genius-lab monetisation framework to decide the portfolio tier.
+**Purpose:** Verify the market gap — "existing tools … handle prose books but not comics" — with real evidence, then apply a 5-criteria monetisation framework to decide the project tier.
 
 > Method: WebSearch (≥6 queries) + WebFetch against product homepages, pricing pages, and research arXiv. Every URL is tagged as **(primary)** if fetched directly or **(secondary-corroborated)** if reached only via search snippet. Unknown or unverifiable facts are tagged `# UNVERIFIED`. The spec.md §1 hypothesis is treated as a claim to be tested, not accepted.
 
@@ -357,7 +357,7 @@ This paper (Sept 2025) demonstrates the problem is actively researched. The risk
 
 ## 9. Monetisation Criteria Scoring
 
-Applying the genius-lab framework (≥4/5 → monetise):
+Applying the 5-criteria framework (≥4/5 → monetise):
 
 ### Criterion 1: Mercato ampio — >10.000 potenziali clienti paganti?
 

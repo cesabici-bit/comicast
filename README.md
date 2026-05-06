@@ -148,7 +148,7 @@ src/comicast/
 └── schemas.py          # Pydantic schemas (frozen, byte-stable)
 ```
 
-Anti-hallucination architecture: see [`CLAUDE.md`](CLAUDE.md) and [`spec.md`](spec.md) for the M1 (verified-deps lock), M2 (external oracle test pattern), M3 (smoke-before-unit), and L1-L5 verification levels used during development.
+Anti-hallucination architecture: every dependency in [`verified-deps.toml`](verified-deps.toml) is web-verified (version, doc URL, methods used). Every non-trivial test cites a `# SOURCE:` for the expected value (Anthropic docs, ElevenLabs v3 reference, etc.). The four research notes in [`docs/research/`](docs/research/) document the SDK / market analysis underpinning the design.
 
 ## Roadmap
 
@@ -170,7 +170,9 @@ make check-all       # ruff + mypy + pytest + verified-deps check
 make smoke           # E2E mocked smoke test (no API keys)
 ```
 
-The repo follows a phase-gated workflow with structural anti-hallucination mechanisms — see [`CLAUDE.md`](CLAUDE.md). Every dependency in [`verified-deps.toml`](verified-deps.toml) is web-verified with version, doc URL, and the methods actually used. Every non-trivial test cites a `# SOURCE:` for the expected value (Vallado, Anthropic docs, ElevenLabs v3 reference, etc.).
+## Acknowledgments
+
+Comicast was built with the assistance of [Claude Code](https://claude.com/claude-code) (Anthropic). Most commits are co-authored by Claude — see commit log.
 
 ## Legal
 
