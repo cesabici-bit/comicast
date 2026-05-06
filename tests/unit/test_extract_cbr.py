@@ -1,8 +1,9 @@
-"""L1 unit tests for CBR extraction (v1: not supported, see plan T21 Step 1 fallback).
+"""L1 unit tests for CBR extraction (v1: not supported, dispatcher raises with
+conversion guidance).
 
-CBR support is deferred in v1 per the plan decision branch: CBZ dominates digital
-comics and adding CBR would require an `unrar` or `bsdtar` runtime binary on the
-host. Users with .cbr files should convert to .cbz with 7-Zip first.
+CBR support is deferred in v1: CBZ dominates digital comics and adding CBR would
+require an `unrar` or `bsdtar` runtime binary on the host. Users with .cbr files
+should convert to .cbz with 7-Zip first.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ def test_detect_format_cbr() -> None:
 
 def test_extract_cbr_raises_not_implemented(tmp_path: Path) -> None:
     """v1 fallback: dispatcher raises NotImplementedError with conversion guidance."""
-    # SOURCE: plan.md T21 line 2498 — verbatim error message contract
+    # SOURCE: design contract — verbatim error message lock
     source = tmp_path / "fake.cbr"
     source.write_bytes(b"")  # body irrelevant; raise occurs before any parsing
     out_dir = tmp_path / "out"

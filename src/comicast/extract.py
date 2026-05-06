@@ -103,8 +103,8 @@ def _extract_pdf(source: Path, out_dir: Path, dpi: int) -> list[Path]:
     """Convert PDF pages to PNG using pdf2image (requires poppler).
 
     Poppler is discovered via the POPPLER_PATH environment variable when set
-    (programmatic injection, NOT PATH mutation, per CLAUDE.md gotcha and
-    docs/research/F1-extraction.md §1.1). When unset, pdf2image falls back
+    (programmatic injection, NOT PATH mutation — see
+    docs/research/F1-extraction.md §1.1 for rationale). When unset, pdf2image falls back
     to PATH lookup; if poppler is also missing from PATH, the call raises
     pdf2image.exceptions.PDFInfoNotInstalledError (typed, fail-fast).
 
