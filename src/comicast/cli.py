@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 
 from comicast.anthropic_client import AnthropicClient
@@ -36,7 +37,7 @@ from comicast.profile import (
 from comicast.review import run_review
 from comicast.schemas import ScriptFile
 from comicast.stitch import export_mp3, stitch_clips
-from comicast.tts import generate_audio
+from comicast.tts import AudioClip, generate_audio
 from comicast.vision.attribute import attribute_pages
 from comicast.vision.cast import extract_cast
 from comicast.vision.narrative import check_narrative
@@ -78,6 +79,10 @@ def main(
     log_level: Annotated[str, typer.Option("--log-level")] = "INFO",
     json_logs: Annotated[bool, typer.Option("--json-logs")] = False,
 ) -> None:
+    # Load comicast/.env into os.environ before any client construction.
+    # override=False so explicit env vars (CI secrets) still win over the file —
+    # avoids stale local .env shadowing intended overrides.
+    load_dotenv(override=False)
     setup_logging(level=log_level, json_output=json_logs)
 
 
@@ -200,8 +205,32 @@ def process(
         )
     _assert_cardinalities("direction", n_directed_pages=len(directed.pages))
 
-    # Stage 4 — TTS + Stitching
-    clips = generate_audio(directed, client=el, budget=budget, max_concurrent=8)
+    # Stage 4 — TTS + Stitching (idempotent by clips/ dir presence + count match)
+    clips_dir = volume_dir / "clips"
+    n_expected = sum(len(p.bubbles) for pg in directed.pages for p in pg.panels)
+    existing_clips = sorted(clips_dir.glob("clip_*.mp3")) if clips_dir.exists() else []
+    if not force and len(existing_clips) == n_expected and n_expected > 0:
+        log.info("tts.skip", n_clips=n_expected, reason="clips dir matches expected count")
+        clips: list[AudioClip] = []
+        t_idx = 0
+        for pg in directed.pages:
+            for p in pg.panels:
+                for b_idx, bubble in enumerate(p.bubbles):
+                    audio = existing_clips[t_idx].read_bytes()
+                    clips.append(
+                        AudioClip(
+                            page=pg.page,
+                            panel_order=p.order,
+                            bubble_index=b_idx,
+                            bubble=bubble,
+                            audio=audio,
+                        )
+                    )
+                    t_idx += 1
+    else:
+        clips = generate_audio(
+            directed, client=el, budget=budget, max_concurrent=2, clips_dir=clips_dir
+        )
     _assert_cardinalities("tts", n_clips=len(clips))
     scene_breaks = detect_scene_breaks(script)
     final = stitch_clips(clips, scene_breaks_at_pages=scene_breaks)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
 
 from comicast.budget import BudgetTracker
 from comicast.elevenlabs_client import ElevenLabsClient
@@ -29,6 +30,7 @@ def generate_audio(
     budget: BudgetTracker,
     max_concurrent: int = 8,
     model_id: str = "eleven_v3",
+    clips_dir: Path | None = None,
 ) -> list[AudioClip]:
     """Generate one audio clip per bubble, preserving reading order in result.
 
@@ -44,21 +46,32 @@ def generate_audio(
     `2× estimate + N × max_call_cost`, not `2× + 1`. Acceptable in steady state;
     revisit at T39 (BudgetGuard wrapper) if tighter granularity is required.
     """
-    tasks: list[tuple[int, int, int, DirectedBubble]] = []
+    tasks: list[tuple[int, int, int, int, DirectedBubble]] = []
     for page in script.pages:
         for panel in page.panels:
             for idx, bubble in enumerate(panel.bubbles):
-                tasks.append((page.page, panel.order, idx, bubble))
+                tasks.append((len(tasks), page.page, panel.order, idx, bubble))
 
-    log.info("tts.start", n_bubbles=len(tasks), concurrency=max_concurrent)
+    if clips_dir is not None:
+        clips_dir.mkdir(parents=True, exist_ok=True)
 
-    def _synth(t: tuple[int, int, int, DirectedBubble]) -> AudioClip:
-        page, panel_order, idx, bubble = t
+    log.info(
+        "tts.start",
+        n_bubbles=len(tasks),
+        concurrency=max_concurrent,
+        clips_dir=str(clips_dir) if clips_dir else None,
+    )
+
+    def _synth(t: tuple[int, int, int, int, DirectedBubble]) -> AudioClip:
+        t_idx, page, panel_order, idx, bubble = t
         audio = client.synthesize(
             text=bubble.directed_text,
             voice_id=bubble.voice_id,
             model_id=model_id,
         )
+        if clips_dir is not None:
+            clip_path = clips_dir / f"clip_{t_idx:04d}_p{page:03d}_pn{panel_order}_b{idx}.mp3"
+            clip_path.write_bytes(audio)
         return AudioClip(
             page=page,
             panel_order=panel_order,

@@ -327,6 +327,27 @@ httpx 0.28.1 released 2024-11-18; latest stable.
 """
 
 [[dependency]]
+name = "python-dotenv"
+version = "1.2"
+verified_date = "2026-05-05"
+verified_via = "https://pypi.org/project/python-dotenv/ + https://github.com/theskumar/python-dotenv"
+methods_used = [
+    "dotenv.load_dotenv",
+]
+notes = """
+Loads variables from a .env file in the project root into os.environ at process start,
+so per-project secrets (ANTHROPIC_API_KEY, ELEVENLABS_API_KEY) live in comicast/.env
+(gitignored) instead of as User-scope env vars that conflict with Claude Code's Max
+auth (Claude Code prefers ANTHROPIC_API_KEY over OAuth when set).
+load_dotenv() default behavior: walks up from cwd to find .env. We rely on the default;
+no path is hard-coded so the same code works in CI and from any cwd inside the repo.
+load_dotenv() does NOT override pre-existing env vars (override=False default), so
+explicit env vars (CI secrets, ad-hoc shell exports) still win — .env is a fallback.
+python-dotenv 1.2.2 is the latest on PyPI as of 2026-05-05; installed is 1.2.1.
+Python >= 3.9 required by 1.2.x; project pins Python >= 3.12, no conflict.
+"""
+
+[[dependency]]
 name = "rarfile"
 version = "4.2"
 verified_date = "2026-05-03"
